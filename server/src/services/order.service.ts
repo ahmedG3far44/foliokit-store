@@ -57,11 +57,11 @@ export async function marketplaceInsights(period: "day" | "week" | "month" | "si
   if (!from) { if (period === "day") start.setHours(start.getHours() - 23); else if (period === "week") start.setDate(start.getDate() - 6); else if (period === "month") start.setDate(start.getDate() - 29); else if (period === "six_months") start.setMonth(start.getMonth() - 6); else start.setFullYear(start.getFullYear() - 1); }
   const [summary, series, popular, totalUsers, newUsers] = await Promise.all([
     OrderModel.aggregate([{ $match: { status: "paid", paidAt: { $gte: start, $lte: end } } }, { $group: { _id: null, revenueMinor: { $sum: "$totalMinor" }, totalSales: { $sum: { $size: "$items" } }, orders: { $sum: 1 } } }]),
-    OrderModel.aggregate([{ $match: { status: "paid", paidAt: { $gte: start, $lte: end } } }, { $group: { _id: { $dateToString: { format: period === "day" ? "%Y-%m-%d %H:00" : period === "six_months" || period === "year" ? "%Y-%m" : "%Y-%m-%d", date: "$paidAt" } }, revenueMinor: { $sum: "$totalMinor" }, sales: { $sum: { $size: "$items" } } } }, { $sort: { _id: 1 } }]),
+    OrderModel.aggregate([{ $match: { status: "paid", paidAt: { $gte: start, $lte: end } } }, { $group: { _id: { $dateToString: { format: period === "day" ? "%Y-%m-%d %H:00" : period === "six_months" || period === "year" ? "%Y-%m" : "%Y-%m-%d", date: "$paidAt" } }, revenueMinor: { $sum: "$totalMinor" }, sales: { $sum: { $size: "$items" } }, orders: { $sum: 1 } } }, { $sort: { _id: 1 } }]),
     OrderModel.aggregate([{ $match: { status: "paid" } }, { $unwind: "$items" }, { $group: { _id: "$items.themeId", name: { $first: "$items.name" }, sales: { $sum: 1 }, revenueMinor: { $sum: "$items.totalMinor" } } }, { $sort: { sales: -1 } }, { $limit: 5 }]),
     UserModel.countDocuments(), UserModel.countDocuments({ joinedAt: { $gte: start, $lte: end } }),
   ]);
-  return { period, from: start, to: end, totalUsers, newUsers, revenueMinor: summary[0]?.revenueMinor ?? 0, totalSales: summary[0]?.totalSales ?? 0, orders: summary[0]?.orders ?? 0, sales: series.map((row) => ({ label: row._id, revenueMinor: row.revenueMinor, sales: row.sales })), viralThemes: popular.map((row) => ({ id: String(row._id), name: row.name, sales: row.sales, revenueMinor: row.revenueMinor })) };
+  return { period, from: start, to: end, totalUsers, newUsers, revenueMinor: summary[0]?.revenueMinor ?? 0, totalSales: summary[0]?.totalSales ?? 0, orders: summary[0]?.orders ?? 0, sales: series.map((row) => ({ label: row._id, revenueMinor: row.revenueMinor, sales: row.sales, orders: row.orders })), viralThemes: popular.map((row) => ({ id: String(row._id), name: row.name, sales: row.sales, revenueMinor: row.revenueMinor })) };
 }
 
 export async function themeSales(from?: string, to?: string) {

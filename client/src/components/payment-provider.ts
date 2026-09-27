@@ -24,6 +24,6 @@ export const paymentProviderMeta: Record<PaymentProvider, PaymentProviderMeta> =
     label: "Paymob",
     logoSrc: "/payments/paymob.png",
     width: 36,
-    height: 14,
+    height: 36
   },
 };

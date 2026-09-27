@@ -1191,9 +1191,22 @@ textarea {
   flex-direction: column;
 }
 
-.chart-wrap svg {
-  width: 100%;
+.chart-canvas {
+  position: relative;
   height: 225px;
+  cursor: crosshair;
+  outline: none;
+}
+
+.chart-canvas:focus-visible {
+  border-radius: 8px;
+  outline: 3px solid rgba(99, 91, 219, 0.2);
+  outline-offset: 4px;
+}
+
+.chart-canvas svg {
+  width: 100%;
+  height: 100%;
   overflow: visible;
 }
 
@@ -1209,6 +1222,51 @@ textarea {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.chart-hover-line {
+  stroke: color-mix(in srgb, var(--brand) 38%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.chart-hover-point {
+  fill: var(--surface);
+  stroke: var(--brand);
+  stroke-width: 2.5;
+}
+
+.chart-tooltip {
+  position: absolute;
+  z-index: 2;
+  min-width: 112px;
+  padding: 9px 11px;
+  display: grid;
+  gap: 3px;
+  border-radius: 9px;
+  color: #fff;
+  background: var(--ink);
+  box-shadow: 0 10px 28px rgba(20, 30, 25, 0.18);
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.chart-tooltip.is-left {
+  transform: translate(0, calc(-100% - 12px));
+}
+
+.chart-tooltip.is-right {
+  transform: translate(-100%, calc(-100% - 12px));
+}
+
+.chart-tooltip strong {
+  font-size: 0.7rem;
+  font-weight: 760;
+}
+
+.chart-tooltip span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.66rem;
 }
 
 .chart-labels {
@@ -1977,7 +2035,7 @@ tbody tr:hover {
     height: 220px;
   }
 
-  .chart-wrap svg {
+  .chart-canvas {
     height: 180px;
   }
 
@@ -2060,10 +2118,6 @@ tbody tr:hover {
   color: #59635e;
   font-size: 0.86rem;
   font-weight: 650;
-}
-
-.main-nav a:hover {
-  color: var(--soft);
 }
 
 .cart-link {
@@ -3825,7 +3879,6 @@ tbody tr:hover {
 }
 .order-history-panel .customer-order-row:hover {
   background: var(--soft);
-  transform: translateX(2px);
 }
 .order-history-panel .customer-order-row .purchase-icon {
   grid-row: 1 / span 2;

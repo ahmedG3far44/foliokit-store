@@ -9,7 +9,7 @@ import { PageHeader } from "../../components/admin/page-header";
 type Period = "day" | "week" | "month" | "six_months" | "year";
 interface InsightsData {
   totalUsers: number; newUsers: number; revenueMinor: number; totalSales: number;
-  sales: Array<{ label: string; revenueMinor: number; sales: number }>;
+  sales: Array<{ label: string; revenueMinor: number; sales: number; orders: number }>;
   viralThemes: Array<{ id: string; name: string; sales: number; revenueMinor: number }>;
 }
 
@@ -20,15 +20,57 @@ const periods: Array<{ value: Period; label: string }> = [
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 function SalesChart({ values }: { values: InsightsData["sales"] }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const max = Math.max(...values.map((item) => item.revenueMinor), 1);
-  const points = values.map((item, index) => `${(index / Math.max(values.length - 1, 1)) * 100},${30 - (item.revenueMinor / max) * 27}`).join(" ");
+  const coordinates = values.map((item, index) => ({
+    x: (index / Math.max(values.length - 1, 1)) * 100,
+    y: 30 - (item.revenueMinor / max) * 27,
+  }));
+  const points = coordinates.map(({ x, y }) => `${x},${y}`).join(" ");
+  const hoveredItem = hoveredIndex === null ? null : values[hoveredIndex];
+  const hoveredPoint = hoveredIndex === null ? null : coordinates[hoveredIndex];
+
+  const selectNearestPoint = (clientX: number, element: HTMLElement) => {
+    const bounds = element.getBoundingClientRect();
+    const progress = Math.min(1, Math.max(0, (clientX - bounds.left) / bounds.width));
+    setHoveredIndex(Math.round(progress * Math.max(values.length - 1, 0)));
+  };
+
   return (
     <div className="chart-wrap">
-      <svg viewBox="0 0 100 32" role="img" aria-label="Revenue over time" preserveAspectRatio="none">
-        <line x1="0" y1="30" x2="100" y2="30" className="chart-grid" />
-        <line x1="0" y1="16" x2="100" y2="16" className="chart-grid" />
-        <polyline points={points} className="chart-line" vectorEffect="non-scaling-stroke" />
-      </svg>
+      <div
+        className="chart-canvas"
+        role="group"
+        tabIndex={0}
+        aria-label={hoveredItem ? `${hoveredItem.label}: ${hoveredItem.orders} ${hoveredItem.orders === 1 ? "order" : "orders"}` : "Revenue over time. Hover or use the arrow keys to inspect order counts."}
+        onPointerMove={(event) => selectNearestPoint(event.clientX, event.currentTarget)}
+        onPointerLeave={() => setHoveredIndex(null)}
+        onFocus={() => setHoveredIndex((current) => current ?? 0)}
+        onBlur={() => setHoveredIndex(null)}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+          event.preventDefault();
+          const direction = event.key === "ArrowRight" ? 1 : -1;
+          setHoveredIndex((current) => Math.min(values.length - 1, Math.max(0, (current ?? 0) + direction)));
+        }}
+      >
+        <svg viewBox="0 0 100 32" aria-hidden="true" focusable="false" preserveAspectRatio="none">
+          <line x1="0" y1="30" x2="100" y2="30" className="chart-grid" />
+          <line x1="0" y1="16" x2="100" y2="16" className="chart-grid" />
+          <polyline points={points} className="chart-line" vectorEffect="non-scaling-stroke" />
+          {hoveredPoint && <>
+            <line x1={hoveredPoint.x} y1="2" x2={hoveredPoint.x} y2="30" className="chart-hover-line" vectorEffect="non-scaling-stroke" />
+            <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r="0.8" className="chart-hover-point" vectorEffect="non-scaling-stroke" />
+          </>}
+        </svg>
+        {hoveredItem && hoveredPoint && <div
+          className={`chart-tooltip ${hoveredPoint.x < 12 ? "is-left" : hoveredPoint.x > 88 ? "is-right" : ""}`}
+          style={{ left: `${hoveredPoint.x}%`, top: `${Math.max(hoveredPoint.y / 32 * 100, 14)}%` }}
+        >
+          <strong>{hoveredItem.label}</strong>
+          <span>{hoveredItem.orders} {hoveredItem.orders === 1 ? "order" : "orders"}</span>
+        </div>}
+      </div>
       <div className="chart-labels">{values.filter((_, index) => index % Math.max(1, Math.ceil(values.length / 6)) === 0).map((item) => <span key={item.label}>{item.label}</span>)}</div>
     </div>
   );
