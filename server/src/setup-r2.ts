@@ -25,12 +25,12 @@ async function setupR2() {
 setupR2().catch((error) => {
   const detail = error && typeof error === "object"
     ? {
-        name: "name" in error ? String(error.name) : "UnknownError",
-        message: "message" in error ? String(error.message) : "No error message returned",
-        code: "$metadata" in error && error.$metadata && typeof error.$metadata === "object" && "httpStatusCode" in error.$metadata
-          ? String(error.$metadata.httpStatusCode)
-          : undefined,
-      }
+      name: "name" in error ? String(error.name) : "UnknownError",
+      message: "message" in error ? String(error.message) : "No error message returned",
+      code: "$metadata" in error && error.$metadata && typeof error.$metadata === "object" && "httpStatusCode" in error.$metadata
+        ? String(error.$metadata.httpStatusCode)
+        : undefined,
+    }
     : { name: "UnknownError", message: String(error) };
   if (detail.name === "AccessDenied" && detail.code === "403") {
     console.error("R2 setup failed: the R2 credentials cannot manage bucket CORS. Run this command once with an R2 API token that has Admin Read & Write permission, then use a bucket-scoped Object Read & Write token at runtime.");

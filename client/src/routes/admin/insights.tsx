@@ -7,17 +7,26 @@ import { Skeleton } from "../../components/ui/skeleton";
 import { PageHeader } from "../../components/admin/page-header";
 
 type Period = "day" | "week" | "month" | "six_months" | "year";
+type FilterPeriod = Period | "custom";
 interface InsightsData {
   totalUsers: number; newUsers: number; revenueMinor: number; totalSales: number;
   sales: Array<{ label: string; revenueMinor: number; sales: number; orders: number }>;
   viralThemes: Array<{ id: string; name: string; sales: number; revenueMinor: number }>;
 }
 
-const periods: Array<{ value: Period; label: string }> = [
+const periods: Array<{ value: FilterPeriod; label: string }> = [
   { value: "day", label: "Today" }, { value: "week", label: "7 days" }, { value: "month", label: "30 days" },
-  { value: "six_months", label: "6 months" }, { value: "year", label: "1 year" },
+  { value: "six_months", label: "6 months" }, { value: "year", label: "1 year" }, { value: "custom", label: "Pick range" },
 ];
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+function todayInputValue(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function SalesChart({ values }: { values: InsightsData["sales"] }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -77,10 +86,21 @@ function SalesChart({ values }: { values: InsightsData["sales"] }) {
 }
 
 export default function InsightsPage() {
-  const [period, setPeriod] = useState<Period>("month");
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [period, setPeriod] = useState<FilterPeriod>("day");
+  const [range, setRange] = useState(() => {
+    const today = todayInputValue();
+    return { from: today, to: today };
+  });
   const { data, error, isLoading, run, clearError } = useAsync<InsightsData>();
-  useEffect(() => { const query = new URLSearchParams({ period }); if (range.from) query.set("from", range.from); if (range.to) query.set("to", range.to); void run(api.get<InsightsData>(`/admin/analytics?${query}`)).catch(() => undefined); }, [period, range.from, range.to, run]);
+  useEffect(() => {
+    const query = new URLSearchParams({ period: period === "custom" ? "month" : period });
+    if (period === "custom") {
+      if (!range.from || !range.to || range.from > range.to) return;
+      query.set("from", range.from);
+      query.set("to", range.to);
+    }
+    void run(api.get<InsightsData>(`/admin/analytics?${query}`)).catch(() => undefined);
+  }, [period, range.from, range.to, run]);
   const cards = useMemo(() => [
     { label: "Revenue", value: money.format((data?.revenueMinor ?? 0) / 100), detail: "paid marketplace orders", icon: DollarSign, positive: true },
     { label: "Total sales", value: String(data?.totalSales ?? 0), detail: "completed purchases", icon: ShoppingBag, positive: true },
@@ -91,7 +111,15 @@ export default function InsightsPage() {
   return (
     <main className="admin-page">
       <PageHeader eyebrow="Overview" title="Business insights" description="Track revenue, customer growth, and the plans driving your business." actions={
-        <div className="insight-filters"><select value={period} onChange={(event) => { setPeriod(event.target.value as Period); setRange({ from: "", to: "" }); }} aria-label="Insight period">{periods.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><input type="date" aria-label="Custom range start" value={range.from} onChange={(event) => setRange((value) => ({ ...value, from: event.target.value }))} /><input type="date" aria-label="Custom range end" value={range.to} onChange={(event) => setRange((value) => ({ ...value, to: event.target.value }))} /></div>
+        <div className="insight-filters">
+          <select value={period} onChange={(event) => setPeriod(event.target.value as FilterPeriod)} aria-label="Insight period">
+            {periods.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+          {period === "custom" ? <>
+            <input type="date" aria-label="Custom range start" max={range.to || undefined} value={range.from} onChange={(event) => setRange((value) => ({ ...value, from: event.target.value }))} />
+            <input type="date" aria-label="Custom range end" min={range.from || undefined} value={range.to} onChange={(event) => setRange((value) => ({ ...value, to: event.target.value }))} />
+          </> : null}
+        </div>
       } />
       {error && <ErrorMessage message={error} onDismiss={clearError} />}
       <section className="metric-grid" aria-label="Key metrics">

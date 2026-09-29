@@ -13,6 +13,8 @@ import { isSuccessfulFullRefund } from "../routes/webhook.route.ts";
 import { paypalDecimalToMinor, validatePaypalAmount } from "../services/paypal.service.ts";
 import { convertUsdMinorToEgp, convertUsdPaymobItemsToEgp, paymobHmacPayload, paymobIntegrationIdForCurrency, paymobSupportedCurrencies, validatePaymobTransaction, verifyPaymobHmac, type PaymobTransaction } from "../services/paymob.service.ts";
 import { allocateDiscount, calculateDiscountMinor } from "../services/discount.service.ts";
+import { serializeAsset } from "../services/upload.service.ts";
+import { analyticsWindow } from "../services/order.service.ts";
 
 const validTheme = { name: "Studio Grid", slug: "studio-grid", shortDescription: "A considered portfolio for creative studios.", description: "A complete, responsive portfolio theme designed for independent creative studios.", stack: ["React"], features: ["Responsive"], priceMinor: 4900, currency: "usd", version: "1.0.0", previewUrl: "https://preview.example.com", previewAssetId: "64b64c16e3a54f0012345670", imageAssetIds: ["64b64c16e3a54f0012345678", "64b64c16e3a54f0012345677"], videoAssetIds: ["64b64c16e3a54f0012345676"], sourceAssetId: "64b64c16e3a54f0012345679", featured: false };
 
@@ -325,4 +327,58 @@ test("theme assets require the correct roles, ready status, and distinct files",
   assert.ok(themeAssetIssues(validTheme, assets).some((issue) => issue.path[0] === "videoAssetIds"));
   assets.delete(validTheme.sourceAssetId);
   assert.ok(themeAssetIssues(validTheme, assets).some((issue) => issue.path[0] === "sourceAssetId"));
+});
+
+test("theme lists remain available when stored media cannot be signed", async () => {
+  const previousR2 = {
+    accountId: env.R2_ACCOUNT_ID,
+    accessKeyId: env.R2_ACCESS_KEY_ID,
+    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    bucket: env.R2_BUCKET,
+  };
+  env.R2_ACCOUNT_ID = "replace_me";
+  env.R2_ACCESS_KEY_ID = "replace_me";
+  env.R2_SECRET_ACCESS_KEY = "replace_me";
+  env.R2_BUCKET = "replace_me";
+  try {
+    const asset = await serializeAsset({
+      _id: "64b64c16e3a54f0012345680",
+      kind: "image",
+      status: "ready",
+      bucket: "legacy-r2-bucket",
+      key: "images/original.png",
+      originalName: "original.png",
+      contentType: "image/png",
+      sizeBytes: 1024,
+      variants: [{ format: "webp", key: "images/640.webp", width: 640, height: 360, sizeBytes: 512 }],
+    });
+    assert.equal(asset.url, undefined);
+    assert.equal(asset.variants[0]?.url, undefined);
+    assert.equal(asset.originalName, "original.png");
+  } finally {
+    env.R2_ACCOUNT_ID = previousR2.accountId;
+    env.R2_ACCESS_KEY_ID = previousR2.accessKeyId;
+    env.R2_SECRET_ACCESS_KEY = previousR2.secretAccessKey;
+    env.R2_BUCKET = previousR2.bucket;
+  }
+});
+
+test("today insights use the current calendar day and custom ranges include full days", () => {
+  const now = new Date(2026, 8, 29, 15, 45, 30, 123);
+  const today = analyticsWindow("day", undefined, undefined, now);
+  assert.deepEqual(
+    [today.start.getFullYear(), today.start.getMonth(), today.start.getDate(), today.start.getHours(), today.start.getMinutes()],
+    [2026, 8, 29, 0, 0],
+  );
+  assert.equal(today.end.getTime(), now.getTime());
+
+  const custom = analyticsWindow("month", "2026-09-10", "2026-09-12", now);
+  assert.deepEqual(
+    [custom.start.getFullYear(), custom.start.getMonth(), custom.start.getDate(), custom.start.getHours(), custom.start.getMinutes()],
+    [2026, 8, 10, 0, 0],
+  );
+  assert.deepEqual(
+    [custom.end.getFullYear(), custom.end.getMonth(), custom.end.getDate(), custom.end.getHours(), custom.end.getMinutes(), custom.end.getSeconds(), custom.end.getMilliseconds()],
+    [2026, 8, 12, 23, 59, 59, 999],
+  );
 });

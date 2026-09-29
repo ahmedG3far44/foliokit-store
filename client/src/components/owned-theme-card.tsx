@@ -53,6 +53,16 @@ export function OwnedThemeCard({ entitlement, downloading = false, onDownload }:
       <div><span>Downloads used</span><strong>{entitlement.downloadsUsed} / {entitlement.downloadLimit}</strong></div>
       <progress value={entitlement.downloadsUsed} max={entitlement.downloadLimit} />
     </div>
+    <button
+      type="button"
+      className="icon-button"
+      aria-label={`Download ${theme?.name ?? "theme"} source code`}
+      title="Download source code"
+      disabled={downloadUnavailable}
+      onClick={() => onDownload(entitlement.id)}
+    >
+      {downloading ? <Spinner size="sm" /> : <Download size={16} strokeWidth={2} />}
+    </button>
     <div className="owned-theme-actions" ref={actionsRef}>
 
       <button

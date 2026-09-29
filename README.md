@@ -59,7 +59,7 @@ For upgrades, pull or copy the new source and run the production `up -d --build`
 
 ## Run without Docker (optional)
 
-1. Copy `server/.env.example` to `server/.env`, then configure MongoDB, Clerk, Stripe, and Cloudflare R2.
+1. Copy `server/.env.example` to `server/.env`, then configure MongoDB and Clerk. Cloudflare R2 is optional during local development; when its credentials are absent, admin uploads are stored under `server/local-uploads` and served by the local API.
 2. Create `client/.env` with `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_BASE_URL=http://localhost:3000/api/v1`.
 3. Run `npm install` in both `server` and `client`.
 4. Start the API with `npm run dev` in `server`, then the UI with `npm run dev` in `client`.
@@ -83,6 +83,7 @@ The seed is idempotent and deliberately fails if it cannot resolve a real Clerk 
 ## Cloudflare R2 storage and payments
 
 - Set `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET`. Runtime credentials need Object Read & Write access to that bucket.
+- Placeholder R2 values are treated as unconfigured. Development automatically falls back to local storage; production returns a clear storage configuration error and never silently uses local files.
 - Run `npm run r2:setup` from `server` once with R2 Admin Read & Write credentials to configure browser upload CORS for `CLIENT_URL` and expose the `ETag` header. You can replace them with bucket-scoped Object Read & Write credentials afterward.
 - With Docker, use `docker compose exec api npm run r2:setup:compiled` locally or add `-f compose.prod.yaml` immediately after `docker compose` in production.
 - The R2 bucket stays private. The API returns temporary signed preview URLs for images and videos; theme ZIP keys are never returned, and downloads always use shorter-lived signed URLs.

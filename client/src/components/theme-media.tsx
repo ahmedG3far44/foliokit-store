@@ -5,12 +5,14 @@ export function ThemeMedia({
   asset,
   alt,
   preview = false,
+  autoPlay,
   className = "",
 
 }: {
   asset?: PublicAsset;
   alt: string;
   preview?: boolean;
+  autoPlay?: boolean;
   className?: string;
 }) {
 
@@ -30,7 +32,7 @@ export function ThemeMedia({
       <video
         src={url}
         aria-label={alt}
-        autoPlay={preview}
+        autoPlay={autoPlay ?? preview}
         loop={preview}
         muted={preview}
         playsInline

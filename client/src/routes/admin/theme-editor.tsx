@@ -42,11 +42,22 @@ function FieldError({ name, errors }: { name: ErrorKey; errors: FormErrors }) {
   return errors[name] ? <small className="field-error" id={`${name}-error`}>{errors[name]}</small> : null;
 }
 
+function fileContentType(file: File, kind: UploadKind): string {
+  if (file.type) return file.type;
+  const extension = file.name.toLowerCase().split(".").pop();
+  const byExtension: Record<string, string> = {
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", avif: "image/avif", gif: "image/gif",
+    mp4: "video/mp4", webm: "video/webm", zip: "application/zip",
+  };
+  return extension && byExtension[extension] ? byExtension[extension] : kind === "theme_zip" ? "application/zip" : "application/octet-stream";
+}
+
 function validateFile(file: File, kind: UploadKind, role: UploadRole): string | undefined {
   const rule = uploadRules[kind];
-  if (role === "preview" && !["video/mp4", "video/webm", "image/gif"].includes(file.type)) return "Choose one MP4, WebM, or GIF preview";
+  const contentType = fileContentType(file, kind);
+  if (role === "preview" && !["video/mp4", "video/webm", "image/gif"].includes(contentType)) return "Choose one MP4, WebM, or GIF preview";
   const isZip = kind === "theme_zip" && file.name.toLowerCase().endsWith(".zip");
-  if (!rule.types.includes(file.type) && !(role === "preview" && file.type === "image/gif") && !isZip) return `Choose a supported ${kind === "theme_zip" ? "ZIP" : kind} file`;
+  if (!rule.types.includes(contentType) && !(role === "preview" && contentType === "image/gif") && !isZip) return `Choose a supported ${kind === "theme_zip" ? "ZIP" : kind} file`;
   if (file.size <= 0) return "The selected file is empty";
   if (file.size > rule.maxBytes) return `The file exceeds the ${Math.round(rule.maxBytes / 1024 / 1024)} MB limit`;
   return undefined;
@@ -58,7 +69,7 @@ async function uploadAsset(file: File, kind: UploadKind, update: (progress: numb
     update(5, "Preparing upload");
     const init = await api.post<{ asset: PublicAsset; uploadId: string; partSizeBytes: number }>("/admin/uploads/initiate", {
       kind, originalName: file.name,
-      contentType: file.type || (kind === "theme_zip" ? "application/zip" : "application/octet-stream"),
+      contentType: fileContentType(file, kind),
       sizeBytes: file.size,
     });
     assetId = init.asset.id;
@@ -85,13 +96,23 @@ async function uploadAsset(file: File, kind: UploadKind, update: (progress: numb
   }
 }
 
+function uniqueValues(value: string, separator: "," | "\n"): string[] {
+  const seen = new Set<string>();
+  return value.split(separator).map((item) => item.trim()).filter((item) => {
+    const key = item.toLocaleLowerCase();
+    if (!item || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function validateTheme(fields: Fields, images: PublicAsset[], videos: PublicAsset[], source?: PublicAsset, preview?: PublicAsset): FormErrors {
   const errors: FormErrors = {};
   const name = fields.name.trim();
   const slug = fields.slug.trim();
   const price = Number(fields.price);
-  const stack = fields.stack.split(",").map((value) => value.trim()).filter(Boolean);
-  const features = fields.features.split("\n").map((value) => value.trim()).filter(Boolean);
+  const stack = uniqueValues(fields.stack, ",");
+  const features = uniqueValues(fields.features, "\n");
 
   if (name.length < 2) errors.name = "Enter a name with at least 2 characters";
   else if (name.length > 100) errors.name = "Name cannot exceed 100 characters";
@@ -192,7 +213,7 @@ export default function AdminThemeEditorPage() {
   const selectFiles = async (files: File[], role: UploadRole) => {
     if (!files.length || uploadLock.current || save.isLoading) return;
     const errorKey: ErrorKey = role === "source" ? "sourceAsset" : role === "gallery" ? "galleryAssets" : role === "tutorial" ? "tutorialAssets" : "previewAssets";
-    const kindFor = (file: File): UploadKind => role === "source" ? "theme_zip" : role === "gallery" || file.type === "image/gif" ? "image" : "video";
+    const kindFor = (file: File): UploadKind => role === "source" ? "theme_zip" : role === "gallery" || fileContentType(file, "image") === "image/gif" ? "image" : "video";
     const max = role === "gallery" ? 10 - images.length : role === "tutorial" ? 2 - videos.length : 1;
     const fileError = files.length > max ? `Choose no more than ${Math.max(0, max)} additional ${role} file(s)` : files.map((file) => validateFile(file, kindFor(file), role)).find(Boolean);
     if (fileError) { setErrors((current) => ({ ...current, [errorKey]: fileError })); return; }
@@ -225,7 +246,15 @@ export default function AdminThemeEditorPage() {
     const firstError = Object.keys(validationErrors)[0] as ErrorKey | undefined;
     if (firstError) { requestAnimationFrame(() => document.querySelector<HTMLElement>(`[aria-describedby~="${firstError}-error"]`)?.focus()); return; }
 
-    const body = { ...fields, stack: fields.stack.split(",").map((value) => value.trim()).filter(Boolean), features: fields.features.split("\n").map((value) => value.trim()).filter(Boolean), priceMinor: Math.round(Number(fields.price) * 100), previewAssetId: preview!.id, imageAssetIds: images.map((asset) => asset.id), videoAssetIds: videos.map((asset) => asset.id), sourceAssetId: source!.id, instructionsFormat: "html", changelog: fields.changelog, setupInstructions: fields.setupInstructions, deployInstructions: fields.deployInstructions, seoTitle: fields.seoTitle, seoDescription: fields.seoDescription };
+    const body = {
+      name: fields.name.trim(), slug: fields.slug.trim(), shortDescription: fields.shortDescription.trim(), description: fields.description.trim(),
+      stack: uniqueValues(fields.stack, ","), features: uniqueValues(fields.features, "\n"),
+      priceMinor: Math.round(Number(fields.price) * 100), currency: fields.currency.trim().toUpperCase(), version: fields.version.trim(),
+      previewUrl: fields.previewUrl.trim(), previewAssetId: preview!.id, imageAssetIds: images.map((asset) => asset.id),
+      videoAssetIds: videos.map((asset) => asset.id), sourceAssetId: source!.id, featured: fields.featured,
+      instructionsFormat: "html", changelog: fields.changelog, setupInstructions: fields.setupInstructions, deployInstructions: fields.deployInstructions,
+      seoTitle: fields.seoTitle.trim(), seoDescription: fields.seoDescription.trim(),
+    };
     try {
       const theme = await save.run(id ? api.put<ThemeType>(`/admin/themes/${id}`, body) : api.post<ThemeType>("/admin/themes", body));
       notify(id ? "Theme updated" : "Draft theme created");

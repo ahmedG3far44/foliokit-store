@@ -1,5 +1,6 @@
 import { money } from "../lib/format";
 import { Link, useNavigate } from "react-router-dom";
+import { useRef } from "react";
 import { ThemeMedia } from "./theme-media";
 import { themePreview } from "../lib/theme-media";
 import { Eye, FileDown, LoaderCircle, ShoppingBag, ShoppingCart } from "lucide-react";
@@ -21,6 +22,20 @@ const actionBase =
 export function ThemeCard({ theme, inCart = false, isAdmin = false, onAdd, adding = false }: ThemeCardProps) {
 
   const navigate = useNavigate();
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  const startPreview = () => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const video = previewRef.current?.querySelector("video");
+    if (video) void video.play().catch(() => undefined);
+  };
+
+  const stopPreview = () => {
+    const video = previewRef.current?.querySelector("video");
+    if (!video) return;
+    video.pause();
+    video.currentTime = 0;
+  };
 
   const purchaseAction = theme.purchased ? (
     <Link className={actionBase} to="/purchases" aria-label={`Download ${theme.name}`}>
@@ -58,11 +73,14 @@ export function ThemeCard({ theme, inCart = false, isAdmin = false, onAdd, addin
   void theme.stack;
 
   return (
-    <article className="group  overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
+    <article className="group overflow-hidden rounded-2xl bg-transparent">
 
 
       <div
-        className="block aspect-[4/3] w-full overflow-hidden relative">
+        ref={previewRef}
+        onMouseEnter={startPreview}
+        onMouseLeave={stopPreview}
+        className="relative block aspect-[6/5] w-full overflow-hidden rounded-2xl">
 
         <button
           type="button"
@@ -74,15 +92,18 @@ export function ThemeCard({ theme, inCart = false, isAdmin = false, onAdd, addin
           <Eye size={18} strokeWidth={2.15} />
         </button>
 
-        <ThemeMedia
-          asset={themePreview(theme)}
-          alt={`Preview of ${theme.name}`}
-          preview
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03] bg-gradient-to-b from-[#d4a8dd] via-[#b8a8dc] to-[#9db4dc]"
-        />
+        <Link className="block h-full w-full cursor-pointer" to={`/themes/${theme.slug}/preview`} aria-label={`Open ${theme.name} preview`}>
+          <ThemeMedia
+            asset={themePreview(theme)}
+            alt={`Preview of ${theme.name}`}
+            preview
+            autoPlay={false}
+            className="h-full w-full cursor-pointer object-cover transition-transform duration-300 group-hover:scale-[1.03] bg-gradient-to-b from-[#d4a8dd] via-[#b8a8dc] to-[#9db4dc]"
+          />
+        </Link>
       </div>
 
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <div className="flex items-center justify-between gap-3 px-3 py-3">
 
         <div className="min-w-0">
           <h3 className="truncate">

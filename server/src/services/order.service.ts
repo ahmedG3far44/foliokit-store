@@ -52,9 +52,21 @@ export async function listAdminOrders(query: Record<string, unknown>) {
 
 export async function getAdminOrder(id: string) { const order = await OrderModel.findById(id).populate("userId", "name email phone avatarUrl provider").lean(); if (!order) throw new AppError(404, "ORDER_NOT_FOUND", "Order not found"); return { ...serializeOrder(order as OrderDocument & { _id: unknown }), user: order.userId }; }
 
+export function analyticsWindow(period: "day" | "week" | "month" | "six_months" | "year", from?: string, to?: string, now = new Date()) {
+  const end = to ? new Date(`${to}T23:59:59.999`) : new Date(now);
+  const start = from ? new Date(`${from}T00:00:00.000`) : new Date(end);
+  if (!from) {
+    if (period === "day") start.setHours(0, 0, 0, 0);
+    else if (period === "week") start.setDate(start.getDate() - 6);
+    else if (period === "month") start.setDate(start.getDate() - 29);
+    else if (period === "six_months") start.setMonth(start.getMonth() - 6);
+    else start.setFullYear(start.getFullYear() - 1);
+  }
+  return { start, end };
+}
+
 export async function marketplaceInsights(period: "day" | "week" | "month" | "six_months" | "year", from?: string, to?: string) {
-  const end = to ? new Date(`${to}T23:59:59.999`) : new Date(); const start = from ? new Date(from) : new Date(end);
-  if (!from) { if (period === "day") start.setHours(start.getHours() - 23); else if (period === "week") start.setDate(start.getDate() - 6); else if (period === "month") start.setDate(start.getDate() - 29); else if (period === "six_months") start.setMonth(start.getMonth() - 6); else start.setFullYear(start.getFullYear() - 1); }
+  const { start, end } = analyticsWindow(period, from, to);
   const [summary, series, popular, totalUsers, newUsers] = await Promise.all([
     OrderModel.aggregate([{ $match: { status: "paid", paidAt: { $gte: start, $lte: end } } }, { $group: { _id: null, revenueMinor: { $sum: "$totalMinor" }, totalSales: { $sum: { $size: "$items" } }, orders: { $sum: 1 } } }]),
     OrderModel.aggregate([{ $match: { status: "paid", paidAt: { $gte: start, $lte: end } } }, { $group: { _id: { $dateToString: { format: period === "day" ? "%Y-%m-%d %H:00" : period === "six_months" || period === "year" ? "%Y-%m" : "%Y-%m-%d", date: "$paidAt" } }, revenueMinor: { $sum: "$totalMinor" }, sales: { $sum: { $size: "$items" } }, orders: { $sum: 1 } } }, { $sort: { _id: 1 } }]),

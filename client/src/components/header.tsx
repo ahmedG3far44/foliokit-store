@@ -1,5 +1,5 @@
 import { Show, UserButton } from "@clerk/react";
-import { ArrowLeftRight, ChevronDown, LayoutDashboardIcon, LayoutTemplate, LibraryBig, PackageCheck, ReceiptText, ShoppingBag } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, LayoutDashboardIcon, LayoutTemplate, LibraryBig, Menu, PackageCheck, ReceiptText, ShoppingBag, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAppAuth } from "../context/auth-store";
@@ -13,17 +13,22 @@ const libraryLinks = [
 
 function Header() {
   const { count } = useCart();
-  const { user } = useAppAuth();
+  const { user, isReady } = useAppAuth();
 
   const location = useLocation();
 
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [openedAtPath, setOpenedAtPath] = useState(location.pathname);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileOpenedAtPath, setMobileOpenedAtPath] = useState(location.pathname);
 
+  const headerRef = useRef<HTMLElement>(null);
   const libraryRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
 
   const menuOpen = libraryOpen && openedAtPath === location.pathname;
+  const mobileMenuOpen = mobileOpen && mobileOpenedAtPath === location.pathname;
 
   const libraryActive = location.pathname === "/purchase"
     || location.pathname === "/purchases"
@@ -31,14 +36,22 @@ function Header() {
     || location.pathname.startsWith("/transactions");
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !mobileMenuOpen) return;
     const closeOnOutsideClick = (event: PointerEvent) => {
-      if (!libraryRef.current?.contains(event.target as Node)) setLibraryOpen(false);
+      const target = event.target as Node;
+      if (!headerRef.current?.contains(target)) {
+        setLibraryOpen(false);
+        setMobileOpen(false);
+      } else if (menuOpen && !libraryRef.current?.contains(target)) {
+        setLibraryOpen(false);
+      }
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setLibraryOpen(false);
-      triggerRef.current?.focus();
+      setMobileOpen(false);
+      if (mobileMenuOpen) mobileTriggerRef.current?.focus();
+      else triggerRef.current?.focus();
     };
     document.addEventListener("pointerdown", closeOnOutsideClick);
     document.addEventListener("keydown", closeOnEscape);
@@ -46,31 +59,32 @@ function Header() {
       document.removeEventListener("pointerdown", closeOnOutsideClick);
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [menuOpen]);
+  }, [menuOpen, mobileMenuOpen]);
 
   const isHomePage = location.pathname === "/";
 
 
 
-  return <header className={`site-header ${isHomePage ? "home-header" : ""}`}>
+  return <header ref={headerRef} className={`site-header ${isHomePage ? "home-header" : ""}`}>
     <Logo />
-    <nav className="main-nav" aria-label="Main navigation">
-      <Show when="signed-in">
-        {user?.role === "customer" && <div className="customer-nav">
+    {isReady ? <>
 
-          <NavLink className={({ isActive }) => `customer-nav-link ${isActive ? "active" : ""}`} to="/themes">
-            <LayoutTemplate size={17} strokeWidth={1.9} />
-            <span>Themes</span>
-          </NavLink>
+      <nav className="main-nav" aria-label="Main navigation">
+        <NavLink className={({ isActive }) => `site-nav-link ${isActive ? "active" : ""}`} to="/themes">
+          <LayoutTemplate size={17} strokeWidth={1.9} />
+          <span>Themes</span>
+        </NavLink>
 
-          <div className="library-nav" ref={libraryRef}>
+        <Show when="signed-in">
+          {user?.role === "customer" && <div className="library-nav" ref={libraryRef}>
             <button
               ref={triggerRef}
               type="button"
               className={`library-menu-trigger ${libraryActive ? "active" : ""}`}
-              aria-haspopup="menu"
+              aria-controls="header-library-menu"
               aria-expanded={menuOpen}
               onClick={() => {
+                setMobileOpen(false);
                 if (menuOpen) setLibraryOpen(false);
                 else {
                   setOpenedAtPath(location.pathname);
@@ -83,12 +97,11 @@ function Header() {
               <ChevronDown className={menuOpen ? "is-open" : ""} size={14} />
             </button>
 
-            <div className={`header-library-menu ${menuOpen ? "is-open" : ""}`} role="menu" aria-hidden={!menuOpen}>
+            <div id="header-library-menu" className={`header-library-menu ${menuOpen ? "is-open" : ""}`} aria-hidden={!menuOpen}>
               <div className="header-library-menu-label">Your account</div>
               {libraryLinks.map(({ to, label, description, icon: Icon }) => <NavLink
                 key={to}
                 to={to}
-                role="menuitem"
                 tabIndex={menuOpen ? 0 : -1}
                 className={({ isActive }) => isActive ? "active" : ""}
                 onClick={() => setLibraryOpen(false)}
@@ -97,28 +110,77 @@ function Header() {
                 <span><strong>{label}</strong><small>{description}</small></span>
               </NavLink>)}
             </div>
-          </div>
-        </div>}
-        {user?.role === "admin" && <Link className="nav-admin-link" to="/admin">
-          <span>
+          </div>}
+          {user?.role === "admin" && <NavLink className={({ isActive }) => `site-nav-link nav-admin-link ${isActive ? "active" : ""}`} to="/admin">
+            <LayoutDashboardIcon size={18} strokeWidth={1.9} />
+            <span>Dashboard</span>
+          </NavLink>}
+        </Show>
+      </nav>
+
+      <div className="auth-actions">
+        <Show when="signed-out">
+          <Link className="text-button" to="/sign-in">Sign in</Link>
+          <Link className="primary-button small" to="/sign-up">Create account</Link>
+        </Show>
+
+        <Show when="signed-in">
+          <UserButton />
+          {user?.role !== "admin" && <Link className="cart-link" to="/cart" aria-label={`Cart with ${count} items`}><ShoppingBag size={19} />{count > 0 && <span>{count}</span>}</Link>}
+        </Show>
+        <button
+          ref={mobileTriggerRef}
+          type="button"
+          className="mobile-menu-trigger"
+          aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
+          aria-controls="mobile-site-navigation"
+          aria-expanded={mobileMenuOpen}
+          onClick={() => {
+            setLibraryOpen(false);
+            if (mobileMenuOpen) setMobileOpen(false);
+            else {
+              setMobileOpenedAtPath(location.pathname);
+              setMobileOpen(true);
+            }
+          }}
+        >
+          {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
+        </button>
+      </div>
+
+      <nav
+        id="mobile-site-navigation"
+        className={`mobile-navigation ${mobileMenuOpen ? "is-open" : ""}`}
+        aria-label="Mobile navigation"
+        aria-hidden={!mobileMenuOpen}
+      >
+        <NavLink tabIndex={mobileMenuOpen ? 0 : -1} className={({ isActive }) => isActive ? "active" : ""} to="/themes" onClick={() => setMobileOpen(false)}>
+          <LayoutTemplate size={18} />
+          <span><strong>Themes</strong><small>Browse portfolio templates</small></span>
+        </NavLink>
+        <Show when="signed-in">
+          {user?.role === "customer" && libraryLinks.map(({ to, label, description, icon: Icon }) => <NavLink
+            key={to}
+            tabIndex={mobileMenuOpen ? 0 : -1}
+            className={({ isActive }) => isActive ? "active" : ""}
+            to={to}
+            onClick={() => setMobileOpen(false)}
+          >
+            <Icon size={18} />
+            <span><strong>{label}</strong><small>{description}</small></span>
+          </NavLink>)}
+          {user?.role === "admin" && <NavLink tabIndex={mobileMenuOpen ? 0 : -1} className={({ isActive }) => isActive ? "active" : ""} to="/admin" onClick={() => setMobileOpen(false)}>
             <LayoutDashboardIcon size={18} />
-          </span>
-          <span>Dashboard</span>
-        </Link>}
-      </Show>
-    </nav>
-
-    <div className="auth-actions">
-      <Show when="signed-out">
-        <Link className="text-button" to="/sign-in">Sign in</Link>
-        <Link className="primary-button small" to="/sign-up">Create account</Link>
-      </Show>
-
-      <Show when="signed-in">
-        <UserButton />
-        {user?.role !== "admin" && <Link className="cart-link" to="/cart" aria-label={`Cart with ${count} items`}><ShoppingBag size={19} />{count > 0 && <span>{count}</span>}</Link>}
-      </Show>
-    </div>
+            <span><strong>Dashboard</strong><small>Manage your marketplace</small></span>
+          </NavLink>}
+        </Show>
+        <Show when="signed-out">
+          <div className="mobile-auth-links">
+            <Link tabIndex={mobileMenuOpen ? 0 : -1} to="/sign-in" onClick={() => setMobileOpen(false)}>Sign in</Link>
+            <Link tabIndex={mobileMenuOpen ? 0 : -1} to="/sign-up" onClick={() => setMobileOpen(false)}>Create account</Link>
+          </div>
+        </Show>
+      </nav></> : <Skeleton />}
   </header>;
 }
 
@@ -128,4 +190,13 @@ export default Header;
 
 export function Logo() {
   return (<Link className="brand" to="/">FOLIO <span>KIT</span></Link>)
+}
+export function Skeleton() {
+  return (<div className="flex flex-row-reverse items-center gap-2 animate-pulse" >
+    <div className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-600"></div>
+    <div className="space-y-1">
+      <div className="w-24 h-4 rounded ml-auto bg-neutral-100 dark:bg-neutral-600"></div>
+      <div className="w-40 h-3 rounded bg-neutral-100 dark:bg-neutral-600"></div>
+    </div>
+  </div>)
 }
