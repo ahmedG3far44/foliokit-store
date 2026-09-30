@@ -5,6 +5,10 @@
 **/.env.*
 !.env.example
 !**/.env.example
+!.env.development.example
+!**/.env.development.example
+!.env.production.example
+!**/.env.production.example
 !.env.sample
 !**/.env.sample
 !.env.template

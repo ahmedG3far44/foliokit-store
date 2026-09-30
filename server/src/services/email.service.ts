@@ -1,7 +1,7 @@
 import env from "../config/env.ts";
 import UserModel from "../models/user.ts";
 
-import { resend } from "../config/resend.ts";
+import { getResendClient } from "../config/resend.ts";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 export const emailTemplateTypes = ["welcome", "invoice", "refund", "promotion"] as const;
@@ -280,6 +280,7 @@ export async function unsubscribeFromMarketing(token: string): Promise<boolean> 
 
 export async function sendEmailTemplate(input: SendTemplateInput) {
   assertBaseEmailConfiguration(input.type);
+  const resend = getResendClient();
   const variables = { ...input.variables };
   if (input.type === "promotion" && !variables.unsubscribeUrl) {
     variables.unsubscribeUrl = `mailto:${env.EMAIL_REPLY_TO}?subject=unsubscribe`;
@@ -309,6 +310,7 @@ export async function sendPromotionEmails(
   campaignId: string,
 ): Promise<number> {
   assertMarketingConfiguration();
+  const resend = getResendClient();
   const payload = recipients.map((recipient) => {
     const unsubscribeUrl = marketingUnsubscribeUrl(recipient.id);
     const template = renderEmailTemplate("promotion", { ...variables, name: recipient.name, unsubscribeUrl });

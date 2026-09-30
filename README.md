@@ -2,67 +2,118 @@
 
 A single-vendor marketplace for production-ready portfolio templates. Visitors browse published themes, customers buy securely through Stripe, PayPal, or Paymob, and administrators manage themes, users, orders, email promotions, uploads, and revenue analytics.
 
-## Run locally with Docker
+## Docker environments
 
-Requirements: Docker Desktop (or Docker Engine with Compose v2).
+Requirements: Docker Desktop, or Docker Engine with Docker Compose v2.
 
-1. Copy `.env.example` to `.env`.
-2. Set a long, URL-safe `MONGO_ROOT_PASSWORD` and add the Clerk keys. The client build requires `VITE_CLERK_PUBLISHABLE_KEY`.
-3. Add Stripe, Resend, and Cloudflare R2 credentials for the corresponding marketplace features.
-4. Build and start the stack:
+The repository has two independent environments and four private environment files:
+
+| Environment | Client variables | Server variables | Public endpoints |
+| --- | --- | --- | --- |
+| Development | `client/.env.development` | `server/.env.development` | UI: `http://localhost:5173`; API: `http://localhost:5000` |
+| Production | `client/.env.production` | `server/.env.production` | UI: `https://foliokit.store`; API: `https://api.foliokit.store` |
+
+The completed environment files are ignored by Git. Their `.example` counterparts contain every supported variable and are safe to commit.
+
+### Development
+
+Create the two local files and replace the placeholders with development/test credentials:
 
 ```sh
-docker compose up -d --build
+cp client/.env.development.example client/.env.development
+cp server/.env.development.example server/.env.development
 ```
 
-Open `http://localhost:8080` (or the port set by `HTTP_PORT`). MongoDB and the API are isolated from the host; only the reverse proxy is published. Data survives restarts in a named Docker volume.
+Then start the hot-reloading development stack:
+
+```sh
+docker compose up --build
+```
+
+Open `http://localhost:5173`. Source changes under `client`, `server`, and `shared` are mounted into their containers. MongoDB and local uploads persist in named volumes.
 
 Useful commands:
 
 ```sh
 docker compose ps
-docker compose logs -f api
+docker compose logs -f server client
 docker compose down
 ```
 
-`docker compose down` keeps the database. Only add `--volumes` when you deliberately want to erase local database and volume data.
+### Production
 
-The externally routed API health endpoints are `GET /health/live` and `GET /health/ready`.
+Production uses Nginx to serve the React build on `foliokit.store` and reverse-proxy Express on `api.foliokit.store`. Certbot obtains and renews one Let's Encrypt certificate for both hostnames; Nginx redirects HTTP to HTTPS and reloads when the certificate changes.
 
-## Production deployment with a domain
-
-The production stack uses Caddy in front of the React and Express containers. Caddy obtains and renews trusted TLS certificates automatically and redirects HTTP to HTTPS.
-
-1. Provision a Linux server with Docker Engine and the Compose plugin.
-2. Point the domain's DNS `A` record (and `AAAA` when using IPv6) to the server. Set `DOMAIN` to that exact hostname, without `https://` or a path.
-3. Allow inbound TCP ports 80 and 443 and UDP port 443. Ports 80 and 443 must not be occupied by another web server.
-4. Copy the project and `.env` to the server. Set `DOMAIN`, `ACME_EMAIL`, a strong URL-safe MongoDB password, and every application credential used in production.
-5. In Clerk, allow `https://your-domain.example` as an application origin/redirect URL.
-6. Start the production stack:
+1. Provision a Linux server with Docker Engine and Compose v2.
+2. Create DNS `A` records for both `foliokit.store` and `api.foliokit.store` pointing to that server. Add matching `AAAA` records only when IPv6 is configured on the server.
+3. Allow inbound TCP ports 80 and 443, and ensure no other process is using them.
+4. Create the production environment files:
 
 ```sh
-docker compose -f compose.prod.yaml up -d --build
-docker compose -f compose.prod.yaml ps
+cp client/.env.production.example client/.env.production
+cp server/.env.production.example server/.env.production
 ```
 
-Once DNS reaches the server, visit `https://your-domain.example`. Certificate state is persisted in the `caddy_data` volume, and MongoDB data is persisted in `mongodb_data`.
+5. Replace every placeholder. Use the same Clerk production publishable key for `VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_PUBLISHABLE_KEY`. Use a long MongoDB password containing only letters, numbers, underscores, and hyphens, then copy it unchanged into both `MONGO_INITDB_ROOT_PASSWORD` and `MONGODB_URI`.
+6. Start the stack. `--env-file` is required because Vite variables are compiled into the browser bundle at image-build time:
 
-For upgrades, pull or copy the new source and run the production `up -d --build` command again. Back up the MongoDB volume before application or database upgrades.
+```sh
+docker compose --env-file client/.env.production -f docker-compose.production.yaml up -d --build
+docker compose --env-file client/.env.production -f docker-compose.production.yaml ps
+```
 
-### Production integration URLs
+Nginx creates a short-lived self-signed certificate only for the first boot. After DNS is reachable, Certbot replaces it with the trusted certificate and Nginx reloads automatically (normally within about one minute after issuance). Check issuance with:
 
-- Stripe webhook: `https://your-domain.example/api/v1/webhooks/stripe`
-- PayPal webhook: `https://your-domain.example/api/v1/webhooks/paypal`
-- Paymob webhook: `https://your-domain.example/api/v1/webhooks/paymob`
-- Live health check: `https://your-domain.example/health/live`
-- Readiness check: `https://your-domain.example/health/ready`
+```sh
+docker compose --env-file client/.env.production -f docker-compose.production.yaml logs -f certbot nginx
+```
+
+For upgrades, back up MongoDB, deploy the new source, and run the production `up -d --build` command again. Compose preserves MongoDB and certificate volumes. `docker compose down` keeps them; do not add `--volumes` unless you intentionally want to erase persisted data and certificates.
+
+### Production URLs
+
+- Client: `https://foliokit.store`
+- API health: `https://api.foliokit.store/health/ready`
+- Stripe webhook: `https://api.foliokit.store/api/v1/webhooks/stripe`
+- PayPal webhook: `https://api.foliokit.store/api/v1/webhooks/paypal`
+- Paymob webhook: `https://api.foliokit.store/api/v1/webhooks/paymob`
+
+### Production provider changes
+
+#### Clerk
+
+- Create or activate the Clerk production instance for `foliokit.store`; do not use development keys in production.
+- Put its `pk_live_...` key in both production publishable-key variables and its `sk_live_...` key in `CLERK_SECRET_KEY`.
+- Complete Clerk's DNS records and certificate deployment, restrict allowed subdomains/origins to `https://foliokit.store`, and recreate any social-login OAuth credentials required by the production instance.
+- The API now supplies `https://foliokit.store` as Clerk's `authorizedParties` allowlist.
+- `CLERK_WEBHOOK_SECRET` can remain empty because this codebase does not currently expose a Clerk webhook route; user synchronization happens during authenticated API use.
+
+#### Resend
+
+- Add and verify `foliokit.store`, then publish the exact DKIM and SPF records Resend supplies. Publish and monitor a DMARC policy too.
+- Create a production sending-only API key restricted to the verified domain and set `RESEND_API_KEY`.
+- Keep all `EMAIL_FROM_*` values on the verified domain. Set a real `BUSINESS_ADDRESS` and a long random `EMAIL_UNSUBSCRIBE_SECRET` before sending promotions.
+
+#### Stripe
+
+- Activate the Stripe account and replace `sk_test_...` with the live `sk_live_...` secret in `STRIPE_SECRET_KEY`.
+- In Stripe live mode, create the webhook endpoint shown above and subscribe to `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `refund.created`, and `refund.updated`.
+- Copy that live endpoint's new `whsec_...` value into `STRIPE_WEBHOOK_SECRET`. Test and live webhook secrets are different.
+
+#### PayPal
+
+- Use a verified PayPal Business account, open the **Live** tab for the REST app, and replace the sandbox client ID and secret with its live credentials.
+- Set `PAYPAL_ENVIRONMENT=live`.
+- On that same live app, register the PayPal webhook URL shown above for `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`, and `PAYMENT.CAPTURE.REFUNDED`; put the resulting live listener ID in `PAYPAL_WEBHOOK_ID`.
+
+#### Cloudflare R2 and Paymob
+
+- Configure the R2 bucket and production credentials, then run `docker compose --env-file client/.env.production -f docker-compose.production.yaml exec server npm run r2:setup:compiled` once so browser uploads allow `https://foliokit.store`.
+- For Paymob, replace test keys, integration IDs, and HMAC secret with values from Live mode and keep `PUBLIC_API_URL=https://api.foliokit.store`.
 
 ## Run without Docker (optional)
 
-1. Copy `server/.env.example` to `server/.env`, then configure MongoDB and Clerk. Cloudflare R2 is optional during local development; when its credentials are absent, admin uploads are stored under `server/local-uploads` and served by the local API.
-2. Create `client/.env` with `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_BASE_URL=http://localhost:3000/api/v1`.
-3. Run `npm install` in both `server` and `client`.
-4. Start the API with `npm run dev` in `server`, then the UI with `npm run dev` in `client`.
+Use the two development environment files described above, run `npm install` in both packages, then run `npm run dev` in `server` and `client`. The local API remains on port 5000 and the Vite client on port 5173.
 
 ## Create the first administrator
 
@@ -72,10 +123,10 @@ First create the account in Clerk. Set `ADMIN_EMAIL` to the exact Clerk email an
 npm run seed
 ```
 
-With Docker, run the same one-time operation inside the API container:
+With Docker, run the same one-time operation inside the server container:
 
 ```sh
-docker compose exec api npm run seed:compiled
+docker compose exec server npm run seed:compiled
 ```
 
 The seed is idempotent and deliberately fails if it cannot resolve a real Clerk identity. It never creates an unlinked database-only administrator. It also adds six draft themes with external placeholder images. A source ZIP is optional when publishing, but a theme cannot be purchased until its ZIP is ready. Sign in through `/sign-in`; the restored Clerk session is synchronized into MongoDB, and an admin is then routed to `/admin`.
@@ -85,7 +136,7 @@ The seed is idempotent and deliberately fails if it cannot resolve a real Clerk 
 - Set `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET`. Runtime credentials need Object Read & Write access to that bucket.
 - Placeholder R2 values are treated as unconfigured. Development automatically falls back to local storage; production returns a clear storage configuration error and never silently uses local files.
 - Run `npm run r2:setup` from `server` once with R2 Admin Read & Write credentials to configure browser upload CORS for `CLIENT_URL` and expose the `ETag` header. You can replace them with bucket-scoped Object Read & Write credentials afterward.
-- With Docker, use `docker compose exec api npm run r2:setup:compiled` locally or add `-f compose.prod.yaml` immediately after `docker compose` in production.
+- With Docker, use `docker compose exec server npm run r2:setup:compiled` locally or `docker compose --env-file client/.env.production -f docker-compose.production.yaml exec server npm run r2:setup:compiled` in production.
 - The R2 bucket stays private. The API returns temporary signed preview URLs for images and videos; theme ZIP keys are never returned, and downloads always use shorter-lived signed URLs.
 - Set Stripe's webhook endpoint to `POST /api/v1/webhooks/stripe` for `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `refund.created`, and `refund.updated`.
 - Only a verified Stripe webhook with the expected amount and currency grants entitlements. Stripe returns customers to `/purchase`, which shows a processing state and polls until the webhook marks the order paid.
@@ -115,5 +166,5 @@ Validate the container definitions without starting services:
 
 ```sh
 docker compose config --quiet
-docker compose -f compose.prod.yaml config --quiet
+docker compose --env-file client/.env.production -f docker-compose.production.yaml config --quiet
 ```

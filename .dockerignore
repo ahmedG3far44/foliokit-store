@@ -7,7 +7,7 @@
 **/dist
 **/*.log
 docs
-nginx
+/nginx
 Caddyfile
 compose*.yaml
 README.md

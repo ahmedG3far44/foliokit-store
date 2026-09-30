@@ -1,38 +1,43 @@
-name: portfolio-marketplace
+name: foliokit-development
 
 services:
   mongodb:
     image: mongo:8.0
     restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-portfolio}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
-      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-portfolio_marketplace}
     volumes:
-      - mongodb_data:/data/db
+      - mongodb_development_data:/data/db
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --username \"$$MONGO_INITDB_ROOT_USERNAME\" --password \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval \"quit(db.adminCommand({ ping: 1 }).ok ? 0 : 2)\""]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand({ ping: 1 }).ok ? 0 : 2)"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 20s
+      start_period: 10s
 
-  api:
+  server:
     build:
       context: .
       dockerfile: server/Dockerfile
+      target: development
     restart: unless-stopped
     init: true
     env_file:
-      - path: ./.env
-        required: false
+      - ${SERVER_ENV_FILE:-./server/.env.development}
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 5000
-      CLIENT_URL: https://${DOMAIN:?Set DOMAIN in .env}
-      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-portfolio}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/${MONGO_DATABASE:-portfolio_marketplace}?authSource=admin
+      CLIENT_URL: http://localhost:5173
+      MONGODB_URI: mongodb://mongodb:27017/saas
+      PUBLIC_API_URL: http://localhost:5000
+      LOCAL_MEDIA_BASE_URL: http://localhost:5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server:/app/server
+      - ./shared:/app/shared:ro
+      - server_node_modules:/app/server/node_modules
+      - server_local_uploads:/app/server/local-uploads
     depends_on:
       mongodb:
         condition: service_healthy
@@ -44,51 +49,36 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 20s
+      start_period: 30s
 
   client:
     build:
       context: .
       dockerfile: client/Dockerfile
-      args:
-        VITE_BASE_URL: /api/v1
-        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:?Set VITE_CLERK_PUBLISHABLE_KEY in .env}
+      target: development
     restart: unless-stopped
-    networks:
-      - frontend
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
+    init: true
+    env_file:
+      - ${CLIENT_ENV_FILE:-./client/.env.development}
     environment:
-      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
-      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env}
+      VITE_BASE_URL: http://localhost:5000/api/v1
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - "5173:5173"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./client:/app/client
+      - ./shared:/app/shared:ro
+      - client_node_modules:/app/client/node_modules
     depends_on:
-      api:
-        condition: service_healthy
-      client:
+      server:
         condition: service_healthy
     networks:
       - frontend
 
 volumes:
-  mongodb_data:
-  caddy_data:
-  caddy_config:
+  mongodb_development_data:
+  server_node_modules:
+  client_node_modules:
+  server_local_uploads:
 
 networks:
   frontend:

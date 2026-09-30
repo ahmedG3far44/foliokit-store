@@ -4,7 +4,7 @@ dotenv.config();
 
 const env = {
   NODE_ENV: process.env.NODE_ENV ?? "development",
-  PORT: Number(process.env.PORT ?? 3000),
+  PORT: Number(process.env.PORT ?? 5000),
 
   CLIENT_URL: process.env.CLIENT_URL ?? "http://localhost:5173",
   MONGODB_URI: process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/saas",
@@ -32,7 +32,7 @@ const env = {
   PAYMOB_CURRENCY: (process.env.PAYMOB_CURRENCY ?? "EGP").trim().toUpperCase(),
   PAYMOB_HMAC_SECRET: process.env.PAYMOB_HMAC_SECRET ?? "",
   PAYMOB_BASE_URL: (process.env.PAYMOB_BASE_URL ?? "https://accept.paymob.com").replace(/\/$/, ""),
-  PUBLIC_API_URL: (process.env.PUBLIC_API_URL ?? process.env.CLIENT_URL?.split(",")[0] ?? "http://localhost:3000").replace(/\/$/, ""),
+  PUBLIC_API_URL: (process.env.PUBLIC_API_URL ?? "http://localhost:5000").replace(/\/$/, ""),
 
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? "",
   EMAIL_FROM_ACCOUNT: process.env.EMAIL_FROM_ACCOUNT ?? "Foliokit Account <account@foliokit.store>",
@@ -49,7 +49,7 @@ const env = {
   R2_MEDIA_URL_TTL_SECONDS: Math.min(604_800, Math.max(300, Number(process.env.R2_MEDIA_URL_TTL_SECONDS ?? 3600))),
   R2_DOWNLOAD_URL_TTL_SECONDS: Math.min(900, Math.max(60, Number(process.env.R2_DOWNLOAD_URL_TTL_SECONDS ?? 90))),
   LOCAL_UPLOAD_DIR: process.env.LOCAL_UPLOAD_DIR ?? "local-uploads",
-  LOCAL_MEDIA_BASE_URL: (process.env.LOCAL_MEDIA_BASE_URL ?? `http://localhost:${Number(process.env.PORT ?? 3000)}`).replace(/\/$/, ""),
+  LOCAL_MEDIA_BASE_URL: (process.env.LOCAL_MEDIA_BASE_URL ?? `http://localhost:${Number(process.env.PORT ?? 5000)}`).replace(/\/$/, ""),
   MAX_IMAGE_SIZE_MB: Number(process.env.MAX_IMAGE_SIZE_MB ?? 10),
   MAX_VIDEO_SIZE_MB: Number(process.env.MAX_VIDEO_SIZE_MB ?? 250),
   MAX_THEME_ZIP_SIZE_MB: Number(process.env.MAX_THEME_ZIP_SIZE_MB ?? 100),

@@ -1,9 +1,20 @@
-FROM node:24-alpine AS builder
+FROM node:24-alpine AS dependencies
 
 WORKDIR /app/server
 
 COPY server/package*.json ./
 RUN npm ci
+
+FROM dependencies AS development
+
+COPY server/ ./
+COPY shared/ /app/shared/
+
+EXPOSE 5000
+
+CMD ["npm", "run", "dev"]
+
+FROM dependencies AS builder
 
 COPY server/ ./
 COPY shared/ /app/shared/

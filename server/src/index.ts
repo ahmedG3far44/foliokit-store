@@ -32,6 +32,7 @@ app.use(verifyRegion);
 app.use(clerkMiddleware({
   publishableKey: env.CLERK_PUBLISHABLE_KEY,
   secretKey: env.CLERK_SECRET_KEY,
+  authorizedParties: env.CLIENT_URL.split(",").map((value) => value.trim()),
 }));
 
 app.post("/api/v1/webhooks/stripe", express.raw({ type: "application/json", limit: "256kb" }), stripeWebhookHandler);
