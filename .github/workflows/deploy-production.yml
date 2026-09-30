@@ -1,0 +1,83 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+    env:
+      DEPLOY_PATH: ${{ vars.VPS_APP_PATH || '/var/www/foliokit-store' }}
+      DEPLOY_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Update and restart production containers
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
+          DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT || '22' }}
+          fingerprint: ${{ secrets.VPS_HOST_FINGERPRINT }}
+          envs: DEPLOY_PATH,DEPLOY_SHA
+          command_timeout: 40m
+          script: |
+            set -eu
+
+            cd "$DEPLOY_PATH"
+
+            test -d .git || {
+              echo "Deployment directory is not a Git checkout: $DEPLOY_PATH" >&2
+              exit 1
+            }
+            test "$(git branch --show-current)" = "main" || {
+              echo "The VPS checkout must be on the main branch" >&2
+              exit 1
+            }
+            test -z "$(git status --porcelain)" || {
+              echo "The VPS checkout has local changes; deployment stopped to avoid overwriting them" >&2
+              git status --short
+              exit 1
+            }
+            test -f client/.env.production || {
+              echo "Missing client/.env.production on the VPS" >&2
+              exit 1
+            }
+            test -f server/.env.production || {
+              echo "Missing server/.env.production on the VPS" >&2
+              exit 1
+            }
+
+            git fetch origin main
+            git merge --ff-only "$DEPLOY_SHA"
+            test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
+
+            compose() {
+              docker compose \
+                --env-file client/.env.production \
+                -f docker-compose.production.yaml \
+                "$@"
+            }
+
+            compose config --quiet
+            compose down --remove-orphans
+            compose build --pull
+            compose up -d --remove-orphans --wait --wait-timeout 180
+            docker image prune -f
+            compose ps

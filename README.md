@@ -70,6 +70,29 @@ docker compose --env-file client/.env.production -f docker-compose.production.ya
 
 For upgrades, back up MongoDB, deploy the new source, and run the production `up -d --build` command again. Compose preserves MongoDB and certificate volumes. `docker compose down` keeps them; do not add `--volumes` unless you intentionally want to erase persisted data and certificates.
 
+### Automatic production deployment from GitHub
+
+The workflow at `.github/workflows/deploy-production.yml` runs after every push to `main` and can also be started manually from GitHub Actions. It connects to the VPS, fast-forwards its existing `main` checkout to the exact pushed commit, validates the production configuration, stops the running stack, rebuilds every changed image, starts the stack, waits for its health checks, and removes unused images.
+
+In the GitHub repository, open **Settings → Secrets and variables → Actions** and create these repository or `production` environment secrets:
+
+- `VPS_HOST`: the VPS IP address or hostname.
+- `VPS_USERNAME`: the Linux deployment user.
+- `VPS_PASSWORD`: that user's SSH password.
+- `VPS_PORT`: optional; defaults to `22`.
+- `VPS_HOST_FINGERPRINT`: strongly recommended SHA-256 SSH host fingerprint, which prevents connecting to an impersonated server.
+
+Under the **Variables** tab, optionally set `VPS_APP_PATH`. It defaults to `/var/www/foliokit-store`.
+
+Prepare the VPS once before enabling the workflow:
+
+1. Clone this GitHub repository into `VPS_APP_PATH`, leave it on the `main` branch, and make sure `git fetch origin main` works non-interactively. Private repositories require a read-only deploy key or another GitHub credential on the VPS.
+2. Create `client/.env.production` and `server/.env.production` in that checkout. They remain ignored by Git and are not overwritten during deployment.
+3. Install Docker Engine and Docker Compose v2. Add `VPS_USERNAME` to the Docker group so it can run `docker compose` without `sudo`.
+4. Keep TCP ports 80 and 443 open for Nginx and certificate renewal.
+
+Password authentication is supported as requested, although a dedicated SSH deploy key is safer for a long-lived production server.
+
 ### Production URLs
 
 - Client: `https://foliokit.store`

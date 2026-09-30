@@ -2,7 +2,7 @@ name: foliokit-production
 
 services:
   mongodb:
-    image: mongo:8.0
+    image: mongo:4.4
     restart: unless-stopped
     env_file:
       - ${SERVER_ENV_FILE:-./server/.env.production}
