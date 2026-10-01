@@ -39,7 +39,7 @@ export default function AdminOrdersPage() {
     message={request.error}
     onRetry={() => void load()}
     retryLabel="Reload orders"
-    backTo="/admin"
+    backTo="/dashboard/insights"
     backLabel="Back to insights"
   />;
 
@@ -97,7 +97,7 @@ export default function AdminOrdersPage() {
                 {dateTime(order.createdAt)}
               </td>
               <td>
-                <Link className="icon-button" to={`/admin/orders/${order.id}`} aria-label="View order"><Eye size={17} /></Link>
+                <Link className="icon-button" to={`/dashboard/orders/${order.id}`} aria-label="View order"><Eye size={17} /></Link>
               </td>
             </tr>
             )}

@@ -1,19 +1,19 @@
 import { useState } from "react";
-import { UserButton } from "@clerk/react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAppAuth } from "../../context/auth-store";
 import { CreditCard, Menu, Users, X, ShoppingBag, LayoutPanelTop, ChartSpline, FileText, MailPlus, SquarePercent } from "lucide-react";
 import { Logo } from "../header";
+import { AccountButton } from "../account-button";
 
 const navigation = [
-  { to: "/admin", label: "Admin Insights", icon: ChartSpline, end: true },
-  { to: "/admin/users", label: "Manage users", icon: Users },
-  { to: "/admin/themes", label: "Portfolio themes", icon: LayoutPanelTop },
-  { to: "/admin/content", label: "Site content", icon: FileText },
-  { to: "/admin/orders", label: "Marketplace orders", icon: ShoppingBag },
-  { to: "/admin/discounts", label: "Payments & discounts", icon: SquarePercent },
-  { to: "/admin/promotions", label: "Email promotions", icon: MailPlus },
-  { to: "/admin/transactions", label: "Legacy transactions", icon: CreditCard },
+  { to: "/dashboard/insights", label: "Admin Insights", icon: ChartSpline, end: true },
+  { to: "/dashboard/users", label: "Manage users", icon: Users },
+  { to: "/dashboard/themes", label: "Portfolio themes", icon: LayoutPanelTop },
+  { to: "/dashboard/content", label: "Site content", icon: FileText },
+  { to: "/dashboard/orders", label: "Marketplace orders", icon: ShoppingBag },
+  { to: "/dashboard/discounts", label: "Payments & discounts", icon: SquarePercent },
+  { to: "/dashboard/promotions", label: "Email promotions", icon: MailPlus },
+  { to: "/dashboard/transactions", label: "Legacy transactions", icon: CreditCard },
 ];
 
 export function AdminLayout() {
@@ -38,7 +38,7 @@ export function AdminLayout() {
           ))}
         </nav>
         <div className="sidebar-user">
-          <UserButton />
+          <AccountButton />
           <div><strong>{user?.name}</strong><span>{user?.email}</span></div>
         </div>
       </aside>
@@ -46,7 +46,7 @@ export function AdminLayout() {
         <header className="mobile-header">
           <button className="icon-button" onClick={() => setOpen(true)} aria-label="Open menu"><Menu size={21} /></button>
           <span className="brand">PORTFOLIO <b>MARKET</b></span>
-          <UserButton />
+          <AccountButton />
         </header>
         <Outlet />
       </div>

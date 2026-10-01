@@ -54,7 +54,7 @@ cp client/.env.production.example client/.env.production
 cp server/.env.production.example server/.env.production
 ```
 
-5. Replace every placeholder. Use the same Clerk production publishable key for `VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_PUBLISHABLE_KEY`. Put the MongoDB Atlas connection string in `MONGO_URI`, URL-encoding any special characters in its username or password, and allow the production server's public IP in Atlas Network Access.
+5. Replace every placeholder. Put the MongoDB Atlas connection string in `MONGODB_URI`, URL-encoding special characters in its username or password, and allow the production server's public IP in Atlas Network Access. Production uses Atlas directly; no MongoDB container is started.
 6. Start the stack. `--env-file` is required because Vite variables are compiled into the browser bundle at image-build time:
 
 ```sh
@@ -103,19 +103,19 @@ Password authentication is supported as requested, although a dedicated SSH depl
 
 ### Production provider changes
 
-#### Clerk
+#### Authentication
 
-- Create or activate the Clerk production instance for `foliokit.store`; do not use development keys in production.
-- Put its `pk_live_...` key in both production publishable-key variables and its `sk_live_...` key in `CLERK_SECRET_KEY`.
-- Complete Clerk's DNS records and certificate deployment, restrict allowed subdomains/origins to `https://foliokit.store`, and recreate any social-login OAuth credentials required by the production instance.
-- The API now supplies `https://foliokit.store` as Clerk's `authorizedParties` allowlist.
-- `CLERK_WEBHOOK_SECRET` can remain empty because this codebase does not currently expose a Clerk webhook route; user synchronization happens during authenticated API use.
+- Generate two different random values of at least 32 characters for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`. Keep both server-only and use different values in development and production.
+- Create a Google OAuth 2.0 **Web application** client. Add `http://localhost:5173` and `https://foliokit.store` as Authorized JavaScript origins. This Google Identity Services flow verifies an ID token at the API, so it does not use a callback URL or a Google client secret.
+- Set the same public web client ID as `GOOGLE_CLIENT_ID` on the server and `VITE_GOOGLE_CLIENT_ID` on the client.
+- Set `CLIENT_URL` to the exact browser origin. The API validates mutating-request origins and sends `HttpOnly`, `Secure` production cookies; every client API request uses `credentials: "include"`.
+- Access tokens expire after `ACCESS_TOKEN_TTL_MINUTES` and refresh sessions after `REFRESH_TOKEN_TTL_DAYS`. Refresh tokens rotate and only their SHA-256 hashes are stored in MongoDB.
 
 #### Resend
 
 - Add and verify `foliokit.store`, then publish the exact DKIM and SPF records Resend supplies. Publish and monitor a DMARC policy too.
 - Create a production sending-only API key restricted to the verified domain and set `RESEND_API_KEY`.
-- Keep all `EMAIL_FROM_*` values on the verified domain. Set a real `BUSINESS_ADDRESS` and a long random `EMAIL_UNSUBSCRIBE_SECRET` before sending promotions.
+- Keep all `EMAIL_FROM_*` values on the verified domain.
 
 #### Stripe
 
@@ -140,7 +140,7 @@ Use the two development environment files described above, run `npm install` in 
 
 ## Create the first administrator
 
-First create the account in Clerk. Set `ADMIN_EMAIL` to the exact Clerk email and optionally set `ADMIN_CLERK_USER_ID`, then run from `server`:
+Set `ADMIN_EMAIL`, `ADMIN_NAME`, and a strong `ADMIN_PASSWORD`, then run from `server`:
 
 ```sh
 npm run seed
@@ -152,7 +152,7 @@ With Docker, run the same one-time operation inside the server container:
 docker compose exec server npm run seed:compiled
 ```
 
-The seed is idempotent and deliberately fails if it cannot resolve a real Clerk identity. It never creates an unlinked database-only administrator. It also adds six draft themes with external placeholder images. A source ZIP is optional when publishing, but a theme cannot be purchased until its ZIP is ready. Sign in through `/sign-in`; the restored Clerk session is synchronized into MongoDB, and an admin is then routed to `/admin`.
+The seed is idempotent. It creates or updates the administrator's hashed password, preserves the `admin` role for `ADMIN_EMAIL`, and adds six draft themes with external placeholder images. A source ZIP is optional when publishing, but a theme cannot be purchased until its ZIP is ready. Administrators are routed to `/dashboard/insights`; customers return to `/`.
 
 ## Cloudflare R2 storage and payments
 
@@ -171,12 +171,12 @@ The seed is idempotent and deliberately fails if it cannot resolve a real Clerk 
 
 ## Admin workspace
 
-The `/admin` workspace includes paid-order insights, account access/role management, portfolio theme drafting and publishing, multipart asset uploads, marketplace order inspection, customer email promotions, template test sends, and the existing legacy-transaction tools. Stripe owns promotion-code configuration and application. Themes with paid sales are archived instead of deleted, and user removal retains anonymized financial records.
+The `/dashboard` workspace includes paid-order insights, account access/role management, portfolio theme drafting and publishing, multipart asset uploads, marketplace order inspection, customer email promotions, template test sends, and the existing legacy-transaction tools. The API remains namespaced under `/api/v1/admin`. Stripe owns promotion-code configuration and application. Themes with paid sales are archived instead of deleted, and user removal retains anonymized financial records.
 
 ## Production email delivery
 
 - Verify `foliokit.store` in Resend and publish the exact SPF and DKIM records Resend provides. Add a DMARC record and monitor it before moving to a stricter policy.
-- Keep the account, billing, and marketing sender addresses stable and on the verified domain. Configure every email variable in `.env`; promotional sends remain disabled until `EMAIL_UNSUBSCRIBE_SECRET` and the legal `BUSINESS_ADDRESS` are present.
+- Keep the account, billing, and marketing sender addresses stable and on the verified domain. Transactional email delivery does not require marketing-campaign settings.
 - Promotions include one-click unsubscribe headers and an unsubscribe link. Opted-out customers are excluded from the admin recipient list and are checked again when a campaign is sent.
 - Invoice messages include Gmail Order structured data. Register the production billing sender with Google after it has an established sending history if you want Gmail to recognize the purchase markup outside self-tests.
 - Mailbox providers make the final Spam and category decision. Test the authenticated production domain with several major providers and monitor bounces, complaints, and domain reputation after deployment.

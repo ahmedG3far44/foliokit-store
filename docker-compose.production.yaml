@@ -32,7 +32,7 @@ services:
       target: production
       args:
         VITE_BASE_URL: ${VITE_BASE_URL:?Set VITE_BASE_URL in client/.env.production}
-        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:?Set VITE_CLERK_PUBLISHABLE_KEY in client/.env.production}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:?Set VITE_GOOGLE_CLIENT_ID in client/.env.production}
     restart: unless-stopped
     env_file:
       - ${CLIENT_ENV_FILE:-./client/.env.production}

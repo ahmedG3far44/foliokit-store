@@ -8,9 +8,9 @@ export type PlanDuration = "one_time" | "monthly" | "yearly" | "custom";
 
 export interface IUser {
   id: string;
-  clerkId?: string;
   email: string;
   provider: UserProvider;
+  emailVerified: boolean;
   avatarUrl?: string;
   name: string;
   username?: string;

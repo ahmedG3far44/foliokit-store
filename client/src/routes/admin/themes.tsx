@@ -48,12 +48,12 @@ export default function AdminThemesPage() {
     message={request.error}
     onRetry={() => void load()}
     retryLabel="Reload themes"
-    backTo="/admin"
+    backTo="/dashboard/insights"
     backLabel="Back to insights"
   />;
 
   return <main className="admin-page">
-    <PageHeader eyebrow="Catalog" title="Portfolio themes" description="Create, preview, publish, and safely archive every template in your marketplace." actions={<Link className="primary-button" to="/admin/themes/new"><Plus size={17} />New theme</Link>} />
+    <PageHeader eyebrow="Catalog" title="Portfolio themes" description="Create, preview, publish, and safely archive every template in your marketplace." actions={<Link className="primary-button" to="/dashboard/themes/new"><Plus size={17} />New theme</Link>} />
     {action.error && <ErrorMessage message={action.error} onDismiss={action.clearError} />}
     <section className="panel data-panel">
       <div className="filters-row">
@@ -74,7 +74,7 @@ export default function AdminThemesPage() {
             <td><span className={`status-pill ${theme.status === "published" ? "active" : theme.status === "archived" ? "blocked" : "pending"}`}>{theme.status}</span></td>
             <td><div className="row-actions">
               {theme.status === "published" ? <Link className="icon-button" to={`/themes/${theme.slug}`} aria-label={`View ${theme.name}`}><Eye size={17} /></Link> : <button className="icon-button" disabled title="Publish this theme before viewing its public page" aria-label={`View unavailable for draft theme ${theme.name}`}><Eye size={17} /></button>}
-              <Link className="icon-button" to={`/admin/themes/${theme.id}/edit`} aria-label="Edit"><Edit3 size={17} /></Link>
+              <Link className="icon-button" to={`/dashboard/themes/${theme.id}/edit`} aria-label="Edit"><Edit3 size={17} /></Link>
               {theme.status !== "archived" && <button className="icon-button" disabled={action.isLoading || (theme.status !== "published" && theme.canPublish === false)} title={theme.status !== "published" && theme.missingPublishRequirements?.length ? `Missing: ${theme.missingPublishRequirements.join(", ")}` : undefined} onClick={() => void mutate(api.post(`/admin/themes/${theme.id}/publish`, { published: theme.status !== "published" }), theme.status === "published" ? "Theme returned to draft" : "Theme published")}>{theme.status === "published" ? "Unpublish" : "Publish"}</button>}
               <button className="icon-button danger" aria-label="Delete or archive" onClick={() => { if (window.confirm("Delete this unsold theme, or archive it if it has sales?")) void mutate(api.delete(`/admin/themes/${theme.id}`), "Theme removed from the live catalog"); }}><Trash2 size={17} /></button>
             </div></td>

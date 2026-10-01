@@ -2,14 +2,7 @@ import type { ApiResponse } from "@shared/types";
 import { z } from "zod";
 
 const API_URL = import.meta.env.VITE_BASE_URL || "/api";
-type TokenGetter = (skipCache?: boolean) => Promise<string | null>;
-const successEnvelopeSchema = z.object({
-  success: z.literal(true),
-  data: z.unknown(),
-});
-
-// API errors use RFC 7807 problem details. Older server builds also included a
-// `success: false` field, so accept both shapes and preserve the useful error.
+const successEnvelopeSchema = z.object({ success: z.literal(true), data: z.unknown() });
 const errorEnvelopeSchema = z.object({
   success: z.literal(false).optional(),
   message: z.string().optional(),
@@ -18,12 +11,6 @@ const errorEnvelopeSchema = z.object({
   requestId: z.string().optional(),
   errors: z.array(z.unknown()).optional(),
 }).passthrough();
-
-let getAccessToken: TokenGetter = async () => null;
-
-export function setApiTokenGetter(getter: TokenGetter) {
-  getAccessToken = getter;
-}
 
 export class ApiError extends Error {
   status: number;
@@ -40,31 +27,44 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}, schema?: z.ZodType<T>): Promise<T> {
-  const send = async (skipTokenCache = false) => {
-    const token = await getAccessToken(skipTokenCache);
-    const headers = new Headers(init.headers);
-    headers.set("Accept", "application/json");
-    if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-    return fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" });
-  };
+let refreshPromise: Promise<boolean> | null = null;
+const noRefreshPaths = new Set(["/auth/login", "/auth/register", "/auth/google", "/auth/refresh", "/auth/logout"]);
 
-  let response = await send();
-  // Clerk tokens can expire or be momentarily unavailable while a session is
-  // restored. Refresh the token and retry the rejected request exactly once.
-  if (response.status === 401) response = await send(true);
-  const rawBody: unknown = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const parsedError = errorEnvelopeSchema.safeParse(rawBody);
-    if (parsedError.success) {
-      const body = parsedError.data;
-      throw new ApiError(body.detail ?? body.message ?? "Request failed", response.status, body.code, body.requestId, body.errors);
-    }
-    throw new ApiError("The server returned an unreadable error response", response.status || 502, "INVALID_RESPONSE");
+async function refreshAccessToken(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      credentials: "include",
+    }).then((response) => response.ok).catch(() => false).finally(() => { refreshPromise = null; });
   }
+  return refreshPromise;
+}
 
+async function requestWithRefresh(path: string, init: RequestInit): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set("Accept", headers.get("Accept") ?? "application/json");
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const send = () => fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" });
+  let response = await send();
+  if (response.status === 401 && !noRefreshPaths.has(path) && await refreshAccessToken()) response = await send();
+  return response;
+}
+
+async function throwApiError(response: Response, fallback: string): Promise<never> {
+  const rawBody: unknown = await response.json().catch(() => null);
+  const parsedError = errorEnvelopeSchema.safeParse(rawBody);
+  if (parsedError.success) {
+    const body = parsedError.data;
+    throw new ApiError(body.detail ?? body.message ?? fallback, response.status, body.code, body.requestId, body.errors);
+  }
+  throw new ApiError(fallback, response.status || 502, "INVALID_RESPONSE");
+}
+
+export async function apiFetch<T>(path: string, init: RequestInit = {}, schema?: z.ZodType<T>): Promise<T> {
+  const response = await requestWithRefresh(path, init);
+  if (!response.ok) return throwApiError(response, "Request failed");
+  const rawBody: unknown = await response.json().catch(() => null);
   const parsedEnvelope = successEnvelopeSchema.safeParse(rawBody);
   if (!parsedEnvelope.success) throw new ApiError("The server returned an invalid response", response.status || 502, "INVALID_RESPONSE");
   const body = parsedEnvelope.data as ApiResponse<T>;
@@ -72,23 +72,8 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, schema?:
 }
 
 async function apiDownload(path: string): Promise<{ blob: Blob; filename: string }> {
-  const send = async (skipTokenCache = false) => {
-    const token = await getAccessToken(skipTokenCache);
-    const headers = new Headers({ Accept: "application/pdf" });
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-    return fetch(`${API_URL}${path}`, { headers, credentials: "include" });
-  };
-  let response = await send();
-  if (response.status === 401) response = await send(true);
-  if (!response.ok) {
-    const rawBody: unknown = await response.json().catch(() => null);
-    const parsedError = errorEnvelopeSchema.safeParse(rawBody);
-    if (parsedError.success) {
-      const body = parsedError.data;
-      throw new ApiError(body.detail ?? body.message ?? "Invoice download failed", response.status, body.code, body.requestId, body.errors);
-    }
-    throw new ApiError("Invoice download failed", response.status || 502, "INVALID_RESPONSE");
-  }
+  const response = await requestWithRefresh(path, { headers: { Accept: "application/pdf" } });
+  if (!response.ok) return throwApiError(response, "Invoice download failed");
   const disposition = response.headers.get("content-disposition") ?? "";
   const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? "invoice.pdf";
   return { blob: await response.blob(), filename };

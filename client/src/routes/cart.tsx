@@ -59,7 +59,7 @@ export default function CartPage() {
     }
   };
 
-  if (user?.role === "admin") return <Navigate to="/admin" replace />;
+  if (user?.role === "admin") return <Navigate to="/dashboard/insights" replace />;
   if (cartState.error) return <ErrorState
     title="We couldn’t load your cart"
     message={cartState.error}

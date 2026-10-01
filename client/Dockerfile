@@ -20,9 +20,9 @@ COPY client/ ./
 COPY shared/ /app/shared/
 
 ARG VITE_BASE_URL
-ARG VITE_CLERK_PUBLISHABLE_KEY
+ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_BASE_URL=$VITE_BASE_URL
-ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
 RUN npm run build
 
@@ -39,3 +39,6 @@ RUN chmod +x /docker-entrypoint.d/05-ensure-tls.sh
 EXPOSE 80 443
 
 CMD ["nginx", "-g", "daemon off;"]
+
+# Keep an untargeted local build on the Vite development image.
+FROM development AS default

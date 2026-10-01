@@ -1,45 +1,79 @@
-import { useAuth } from "@clerk/react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { IUser } from "@shared/types";
-import { apiFetch, setApiTokenGetter } from "../lib/api";
-import { AuthContext } from "./auth-store";
+import { ApiError, api } from "../lib/api";
+import { AuthContext, type LoginInput, type RegisterInput } from "./auth-store";
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unable to complete authentication";
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { isLoaded, isSignedIn, sessionId, getToken } = useAuth();
   const [user, setUser] = useState<IUser | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setApiTokenGetter((skipCache = false) => getToken({ skipCache }));
-  }, [getToken]);
-
-  const refreshUser = useCallback(async () => {
-    if (!isSignedIn || !sessionId) return;
-    setIsSyncing(true);
+  const runAuth = useCallback(async (request: () => Promise<IUser>) => {
+    setIsLoading(true);
     setError(null);
     try {
-      // Fetch a fresh token explicitly for the initial database sync. This
-      // removes any dependency on effect ordering while Clerk restores a tab.
-      const token = await getToken({ skipCache: true });
-      if (!token) throw new Error("Your Clerk session is not ready. Refresh the page or sign in again");
-      setUser(await apiFetch<IUser>("/auth/sync", { method: "POST", headers: { Authorization: `Bearer ${token}` } }));
+      const nextUser = await request();
+      setUser(nextUser);
+      return nextUser;
+    } catch (caught) {
+      setError(errorMessage(caught));
+      throw caught;
+    } finally {
+      setIsLoading(false);
     }
-    catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to load your account"); }
-    finally { setIsSyncing(false); }
-  }, [getToken, isSignedIn, sessionId]);
+  }, []);
+
+  const login = useCallback((input: LoginInput) => runAuth(() => api.post<IUser>("/auth/login", input)), [runAuth]);
+  const register = useCallback((input: RegisterInput) => runAuth(() => api.post<IUser>("/auth/register", input)), [runAuth]);
+  const loginWithGoogle = useCallback((credential: string) => runAuth(() => api.post<IUser>("/auth/google", { credential })), [runAuth]);
+
+  const refreshUser = useCallback(async () => {
+    const nextUser = await api.get<IUser>("/auth/me");
+    setUser(nextUser);
+  }, []);
+
+  const logout = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try { await api.post<null>("/auth/logout"); }
+    finally {
+      setUser(null);
+      setIsLoading(false);
+    }
+  }, []);
+  const clearError = useCallback(() => setError(null), []);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn) return;
-    // Syncing the external Clerk session into our database is the effect's purpose.
+    let active = true;
+    // Loading the server-owned session is the external synchronization this provider owns.
     // oxlint-disable-next-line react/set-state-in-effect
-    void refreshUser();
-    const refreshOnFocus = () => { void refreshUser(); };
-    // window.addEventListener("focus", refreshOnFocus);
-    return () => window.removeEventListener("focus", refreshOnFocus);
-  }, [isLoaded, isSignedIn, refreshUser]);
+    void refreshUser()
+      .catch((caught) => {
+        if (active && (!(caught instanceof ApiError) || caught.status !== 401)) setError(errorMessage(caught));
+        if (active) setUser(null);
+      })
+      .finally(() => { if (active) setIsReady(true); });
+    return () => { active = false; };
+  }, [refreshUser]);
 
-  const value = useMemo(() => ({ user: isSignedIn ? user : null, isReady: Boolean(isLoaded && (!isSignedIn || (!isSyncing && (user || error)))), error: isSignedIn ? error : null, refreshUser }), [user, isLoaded, isSignedIn, isSyncing, error, refreshUser]);
+  const value = useMemo(() => ({
+    user,
+    isAuthenticated: Boolean(user),
+    isReady,
+    isLoading,
+    error,
+    login,
+    register,
+    loginWithGoogle,
+    logout,
+    clearError,
+    refreshUser,
+  }), [user, isReady, isLoading, error, login, register, loginWithGoogle, logout, clearError, refreshUser]);
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

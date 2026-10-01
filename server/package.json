@@ -12,7 +12,7 @@
     "seed:compiled": "node dist/server/src/seed.js",
     "r2:setup": "npm run build --silent && node dist/server/src/setup-r2.js",
     "r2:setup:compiled": "node dist/server/src/setup-r2.js",
-    "test": "npm run build --silent && node --test dist/server/src/__tests__/marketplace.test.js"
+    "test": "npm run build --silent && node --test dist/server/src/__tests__/marketplace.test.js dist/server/src/__tests__/auth.test.js"
   },
   "keywords": [],
   "author": "",
@@ -20,13 +20,16 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
     "@aws-sdk/s3-request-presigner": "^3.1131.0",
-    "@clerk/express": "^2.1.67",
     "@fontsource/noto-sans-arabic": "^5.3.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "geoip-lite": "^2.0.3",
+    "google-auth-library": "^11.1.0",
     "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.10.0",
     "pdfkit": "^0.20.2",
     "resend": "^6.28.1",
@@ -35,10 +38,12 @@
     "zod": "^4.6.2"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.6",
     "@types/geoip-lite": "^1.4.4",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/mongoose": "^5.11.96",
     "@types/node": "^22.20.2",
     "@types/pdfkit": "^0.17.6",

@@ -99,7 +99,7 @@ User authorization must always be enforced by the Express API. Hiding admin UI e
 * React Context API.
 * Native `fetch`; Axios is prohibited.
 * Zod for runtime validation.
-* Clerk React SDK for authentication.
+* Application auth context with email/password and Google sign-in.
 * React Router.
 * Custom hooks for loading, error, cancellation, and data handling.
 
@@ -118,7 +118,7 @@ Form state, upload state, and page-specific state should remain local to their c
 * TypeScript.
 * MongoDB with Mongoose.
 * Zod.
-* Clerk Express authentication/JWT verification.
+* Express JWT access-token verification and rotating refresh sessions.
 * Stripe Checkout and webhooks.
 * AWS S3.
 * Multer for controlled server-side image ingestion.
@@ -158,8 +158,8 @@ module/
 
 ### Authentication and accounts
 
-* Clerk is responsible for identity, sessions, sign-in, sign-up, and credentials.
-* MongoDB stores the application profile associated with `clerkUserId`.
+* The application owns password hashing, JWT issuance, refresh-token rotation, and session revocation.
+* Google Identity Services is used only to obtain an ID token, which the API verifies before linking a verified email.
 * Application roles are `customer` and `admin`.
 * Account states are `active` and `blocked`.
 * Blocked users may browse public pages but cannot:
@@ -470,7 +470,7 @@ The system also sends a welcome email on a customer's first login, a PDF invoice
 
 | ID        | Requirement                        | Priority | Acceptance condition                                           |
 | --------- | ---------------------------------- | -------: | -------------------------------------------------------------- |
-| AUTH-001  | Authenticate users with Clerk      |     Must | API rejects protected requests without a valid Clerk token     |
+| AUTH-001  | Authenticate with email/password or Google | Must | API rejects protected requests without a valid access cookie |
 | AUTH-002  | Enforce customer/admin RBAC        |     Must | Customer receives `403` from every admin endpoint              |
 | AUTH-003  | Block and reactivate users         |     Must | Blocked user cannot cart, checkout, or download                |
 | CAT-001   | List published themes              |     Must | Draft and archived themes are excluded                         |
@@ -510,8 +510,8 @@ The system also sends a welcome email on a customer's first login, a PDF invoice
 | `/themes`                  | Searchable theme catalog               |
 | `/themes/:slug`            | Theme details                          |
 | `/cart`                    | Shopping cart                          |
-| `/sign-in`                 | Clerk sign-in                          |
-| `/sign-up`                 | Clerk registration                     |
+| `/sign-in`                 | Email/password or Google sign-in       |
+| `/sign-up`                 | Email/password or Google registration  |
 | `/purchase`                | Purchases and payment fulfillment polling |
 | `/checkout/cancel`         | Cancelled checkout                     |
 | `/account/purchases`       | Owned themes and downloads             |
@@ -521,14 +521,14 @@ The system also sends a welcome email on a customer's first login, a PDF invoice
 
 | Route                    | Purpose                         |
 | ------------------------ | ------------------------------- |
-| `/admin`                 | Analytics dashboard             |
-| `/admin/themes`          | Theme list                      |
-| `/admin/themes/new`      | Create theme                    |
-| `/admin/themes/:themeId` | Edit theme and view performance |
-| `/admin/orders`          | Order management                |
-| `/admin/orders/:orderId` | Order details                   |
-| `/admin/users`           | User management                 |
-| `/admin/promotions`      | Promotion email composer        |
+| `/dashboard/insights`          | Analytics dashboard             |
+| `/dashboard/themes`            | Theme list                      |
+| `/dashboard/themes/new`        | Create theme                    |
+| `/dashboard/themes/:themeId`   | Edit theme and view performance |
+| `/dashboard/orders`            | Order management                |
+| `/dashboard/orders/:orderId`   | Order details                   |
+| `/dashboard/users`             | User management                 |
+| `/dashboard/promotions`        | Promotion email composer        |
 
 ---
 
@@ -538,8 +538,10 @@ The system also sends a welcome email on a customer's first login, a PDF invoice
 
 ```ts
 {
-  clerkUserId: string;
   email: string;
+  passwordHash?: string;
+  googleId?: string;
+  emailVerified: boolean;
   name: string;
   imageUrl?: string;
   role: "customer" | "admin";
@@ -554,8 +556,8 @@ The system also sends a welcome email on a customer's first login, a PDF invoice
 
 Indexes:
 
-* Unique `clerkUserId`.
-* Lowercase email index.
+* Unique lowercase email index.
+* Sparse unique `googleId` index.
 * `{ role: 1, status: 1 }`.
 * `joinedAt`.
 
@@ -752,7 +754,11 @@ Base path:
 | Method | Endpoint           | Purpose                                    |
 | ------ | ------------------ | ------------------------------------------ |
 | POST   | `/webhooks/stripe` | Process verified Stripe events             |
-| POST   | `/webhooks/clerk`  | Synchronize Clerk user changes, if enabled |
+| POST   | `/auth/register`   | Register with email and password            |
+| POST   | `/auth/login`      | Sign in with email and password              |
+| POST   | `/auth/google`     | Verify a Google ID token and sign in         |
+| POST   | `/auth/refresh`    | Rotate the refresh session                   |
+| POST   | `/auth/logout`     | Revoke the current refresh session           |
 
 The Stripe route must receive the raw request body before JSON parsing.
 
@@ -923,7 +929,8 @@ type UseApiState<T> = {
 A shared `apiFetch` wrapper should:
 
 * Use native `fetch`.
-* Obtain the Clerk session token where required.
+* Send `access_token` and `refresh_token` cookies with `credentials: "include"`.
+* Refresh once after a `401`, then retry the original request.
 * Set JSON headers.
 * Parse the standardized error format.
 * Validate responses with Zod.
@@ -962,7 +969,9 @@ A successful response should include rate-limit headers where practical. Rejecti
 
 ## 16. Security requirements
 
-* Verify Clerk JWTs on the server.
+* Verify access JWTs and load the current user and role from MongoDB on the server.
+* Hash passwords with bcrypt and store only refresh-token hashes.
+* Rotate refresh tokens, revoke sessions on logout/block/delete, and detect token reuse.
 * Enforce admin role and active status server-side.
 * Use property allowlists to prevent mass assignment.
 * Validate params, queries, bodies, and responses using Zod.
@@ -991,28 +1000,25 @@ A successful response should include rate-limit headers where practical. Rejecti
 
 ## 17. Admin seed script
 
-Because Clerk owns authentication credentials, `seed.ts` must not create or store an admin password.
+Because Google owns authentication credentials, `seed.ts` must not create or store an admin password.
 
 Required environment inputs:
 
 ```env
-ADMIN_CLERK_USER_ID=user_xxx
-# or:
 ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=replace_with_a_strong_unique_password
 ```
 
 The seed should:
 
-1. Initialize database and Clerk clients.
-2. Resolve the existing Clerk user by ID or email.
-3. Fail if no matching Clerk identity exists.
-4. Upsert the MongoDB user.
-5. Set `role: "admin"` and `status: "active"`.
-6. Optionally synchronize role metadata to Clerk.
-7. Never log credentials or secrets.
-8. Be safe to execute multiple times.
+1. Initialize the application database.
+2. Upsert the MongoDB user by `ADMIN_EMAIL`.
+3. Set `role: "admin"` and `status: "active"`.
+4. Hash `ADMIN_PASSWORD`; optionally link the same verified email on Google sign-in.
+5. Never log credentials or secrets.
+6. Be safe to execute multiple times.
 
-“Admin credentials” therefore means a pre-created Clerk identity referenced through environment variables, not hard-coded email/password credentials.
+Admin credentials come from deployment environment variables and are never hard-coded in source control.
 
 ---
 
@@ -1192,7 +1198,7 @@ Target WCAG 2.2 AA:
 
 ### Integration tests
 
-* Clerk-authenticated routes.
+* JWT cookie-protected routes and refresh-token rotation.
 * MongoDB unique indexes.
 * Atomic download update.
 * Cart revalidation.
@@ -1232,8 +1238,8 @@ Playwright may be used for testing; the “fetch only” restriction applies to 
 ### Web
 
 ```env
-VITE_API_BASE_URL=
-VITE_CLERK_PUBLISHABLE_KEY=
+VITE_BASE_URL=
+VITE_GOOGLE_CLIENT_ID=
 VITE_STRIPE_PUBLISHABLE_KEY=
 ```
 
@@ -1244,10 +1250,13 @@ NODE_ENV=
 PORT=
 CLIENT_URL=
 MONGODB_URI=
-CLERK_SECRET_KEY=
-CLERK_WEBHOOK_SECRET=
-ADMIN_CLERK_USER_ID=
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+ACCESS_TOKEN_TTL_MINUTES=15
+REFRESH_TOKEN_TTL_DAYS=30
+GOOGLE_CLIENT_ID=
 ADMIN_EMAIL=
+ADMIN_PASSWORD=
 REDIS_URL=
 ```
 
@@ -1281,7 +1290,7 @@ Production should prefer workload roles or short-lived AWS credentials instead o
 
 | Milestone        | Scope                                                             |
 | ---------------- | ----------------------------------------------------------------- |
-| 1. Foundation    | Monorepo, React, Express, MongoDB, Clerk, Zod, error handling     |
+| 1. Foundation    | Monorepo, React, Express, MongoDB, JWT cookies, Zod, errors     |
 | 2. Catalog       | Theme model, catalog, details page, search and filters            |
 | 3. Admin catalog | Theme CRUD, S3 uploads, Sharp processing, publication             |
 | 4. Commerce      | Cart, Stripe Checkout promotions, webhook fulfillment             |

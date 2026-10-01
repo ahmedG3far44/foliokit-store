@@ -1,20 +1,9 @@
-FROM node:24-alpine AS dependencies
+FROM node:24-alpine AS builder
 
 WORKDIR /app/server
 
 COPY server/package*.json ./
 RUN npm ci
-
-FROM dependencies AS development
-
-COPY server/ ./
-COPY shared/ /app/shared/
-
-EXPOSE 5000
-
-CMD ["npm", "run", "dev"]
-
-FROM dependencies AS builder
 
 COPY server/ ./
 COPY shared/ /app/shared/
@@ -35,3 +24,10 @@ USER node
 EXPOSE 5000
 
 CMD ["node", "dist/server/src/index.js"]
+
+# Keep an untargeted local build equivalent to the existing development image.
+FROM builder AS development
+
+EXPOSE 5000
+
+CMD ["npm", "start"]

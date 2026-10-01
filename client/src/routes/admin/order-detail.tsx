@@ -49,7 +49,7 @@ export default function AdminOrderDetailPage() {
     message={request.error ?? "This marketplace order may no longer exist."}
     onRetry={id ? () => void request.run(api.get(`/admin/orders/${id}`)).catch(() => undefined) : undefined}
     retryLabel="Reload order"
-    backTo="/admin/orders"
+    backTo="/dashboard/orders"
     backLabel="Back to marketplace orders"
   />;
 
@@ -70,7 +70,7 @@ export default function AdminOrderDetailPage() {
   };
 
   return <main className="admin-page">
-    <Link className="back-link" to="/admin/orders">
+    <Link className="back-link" to="/dashboard/orders">
       <ArrowLeft size={16} />All marketplace orders</Link>
     <div className="order-admin-heading">
       <div><span className="eyebrow">Order details</span>

@@ -8,7 +8,6 @@ declare global {
 }
 
 export function requestContext(req: Request, res: Response, next: NextFunction): void {
-  console.log("Request ID:", req.requestId);
   req.requestId = String(req.headers["x-request-id"] ?? randomUUID());
   res.setHeader("X-Request-Id", req.requestId);
   next();

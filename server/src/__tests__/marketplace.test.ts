@@ -269,16 +269,10 @@ test("invoice emails show the actual EGP amount charged by Paymob", () => {
 });
 
 test("marketing unsubscribe tokens reject tampering", () => {
-  const previousSecret = env.EMAIL_UNSUBSCRIBE_SECRET;
-  env.EMAIL_UNSUBSCRIBE_SECRET = "a-test-secret-that-is-long-enough";
-  try {
-    const userId = "64b64c16e3a54f0012345671";
-    const token = createMarketingUnsubscribeToken(userId);
-    assert.equal(verifyMarketingUnsubscribeToken(token), userId);
-    assert.equal(verifyMarketingUnsubscribeToken(`${token}changed`), null);
-  } finally {
-    env.EMAIL_UNSUBSCRIBE_SECRET = previousSecret;
-  }
+  const userId = "64b64c16e3a54f0012345671";
+  const token = createMarketingUnsubscribeToken(userId);
+  assert.equal(verifyMarketingUnsubscribeToken(token), userId);
+  assert.equal(verifyMarketingUnsubscribeToken(`${token}changed`), null);
 });
 
 test("refund events only close an order after Stripe confirms the full amount", () => {

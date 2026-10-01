@@ -9,7 +9,7 @@ import { api } from "../lib/api";
 const fallbackPrivacy = `<p>Portfolio Market (“we”, “us”) respects your privacy. This policy explains what we collect, how we use it, and your rights.</p>
 <h2>1. Information we collect</h2>
 <ul>
-<li><strong>Account:</strong> name, email, avatar via Clerk.</li>
+<li><strong>Account:</strong> the name and email you provide, a securely hashed password when you register by email, and an avatar when supplied by Google.</li>
 <li><strong>Transactions:</strong> cart, orders, and payment confirmations. We do not store full card numbers; Stripe or PayPal processes payments.</li>
 <li><strong>Usage:</strong> anonymized analytics, logs and preferences.</li>
 </ul>
@@ -20,7 +20,7 @@ const fallbackPrivacy = `<p>Portfolio Market (“we”, “us”) respects your 
 <li>To improve the product and communicate important updates.</li>
 </ul>
 <h2>3. Sharing</h2>
-<p>We share data only with service providers needed to run the marketplace: Clerk (authentication), Stripe and PayPal (payments), hosting, and email. We never sell your data.</p>
+<p>We share data only with service providers needed to run the marketplace: Google when you choose Google sign-in, Stripe and PayPal for payments, hosting, and email. We never sell your data.</p>
 <h2>4. Cookies</h2>
 <p>Essential cookies keep you signed in and your cart persisted. Analytics cookies are used only with your consent where required by law.</p>
 <h2>5. Your rights</h2>

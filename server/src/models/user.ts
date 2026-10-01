@@ -4,8 +4,10 @@ import type { UserProvider, UserRole, UserStatus } from "../../../shared/types.t
 const { Schema, model, models } = mongoose;
 
 export interface UserDocument {
-  clerkId?: string;
   email: string;
+  passwordHash?: string;
+  googleId?: string;
+  emailVerified: boolean;
   provider: UserProvider;
   avatarUrl?: string;
   name: string;
@@ -27,8 +29,10 @@ export interface UserDocument {
 }
 
 const userSchema = new Schema<UserDocument>({
-  clerkId: { type: String, unique: true, sparse: true, index: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+  passwordHash: { type: String, select: false },
+  googleId: { type: String, unique: true, sparse: true, index: true, select: false },
+  emailVerified: { type: Boolean, default: false },
   provider: { type: String, enum: ["email", "google", "github", "microsoft", "apple", "unknown"], default: "unknown", index: true },
   avatarUrl: String,
   name: { type: String, required: true, trim: true },
@@ -55,6 +59,8 @@ userSchema.set("toJSON", {
     result.id = String(result._id);
     delete result._id;
     delete result.__v;
+    delete result.passwordHash;
+    delete result.googleId;
     return value;
   },
 });

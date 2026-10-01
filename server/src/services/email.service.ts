@@ -98,8 +98,6 @@ export function emailConfigurationIssues(): string[] {
     if (env.NODE_ENV === "production" && /(^|@)(example\.com|resend\.dev)$/i.test(address)) issues.push(`${label} must use a verified production domain`);
   }
   if (!env.RESEND_API_KEY) issues.push("RESEND_API_KEY is missing");
-  if (!env.EMAIL_UNSUBSCRIBE_SECRET) issues.push("EMAIL_UNSUBSCRIBE_SECRET is missing; promotion emails are disabled");
-  if (!env.BUSINESS_ADDRESS.trim()) issues.push("BUSINESS_ADDRESS is missing; promotion emails are disabled");
   return issues;
 }
 
@@ -114,8 +112,6 @@ function assertBaseEmailConfiguration(type: EmailTemplateType): void {
 
 function assertMarketingConfiguration(): void {
   assertBaseEmailConfiguration("promotion");
-  if (!env.EMAIL_UNSUBSCRIBE_SECRET) throw new Error("Promotion email unsubscribe secret is not configured");
-  if (!env.BUSINESS_ADDRESS.trim()) throw new Error("Promotion email business address is not configured");
 }
 
 function transactionalHeaders(reference: string): Record<string, string> {
@@ -148,7 +144,7 @@ function emailShell(
   options: { head?: string; marketing?: boolean; unsubscribeUrl?: string } = {},
 ): string {
   const actionHtml = action ? `<tr><td style="padding:8px 40px 34px"><a href="${escapeHtml(action.url)}" style="display:inline-block;background:#5340c6;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:13px 20px;border-radius:8px">${escapeHtml(action.label)}</a></td></tr>` : "";
-  const marketingFooter = `You received this offer because you have a Foliokit customer account.${env.BUSINESS_ADDRESS ? ` ${escapeHtml(env.BUSINESS_ADDRESS)}.` : ""}${options.unsubscribeUrl ? ` <a href="${escapeHtml(options.unsubscribeUrl)}" style="color:#6150c8">Unsubscribe from offers</a>.` : ""}`;
+  const marketingFooter = `You received this offer because you have a Foliokit customer account.${options.unsubscribeUrl ? ` <a href="${escapeHtml(options.unsubscribeUrl)}" style="color:#6150c8">Unsubscribe from offers</a>.` : ""}`;
   const footer = options.marketing ? marketingFooter : "This transactional email was sent by Foliokit about your account or purchase. If you did not expect it, contact support.";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(heading)}</title>${options.head ?? ""}</head><body style="margin:0;background:#f4f5f3;color:#1a1a1a;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(preheader)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f5f3;padding:28px 12px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border:1px solid #e2e6e3;border-radius:14px;overflow:hidden"><tr><td style="background:#171a18;padding:22px 40px;color:#ffffff;font-size:15px;font-weight:800;letter-spacing:.08em">FOLIOKIT</td></tr><tr><td style="padding:38px 40px 14px"><p style="margin:0 0 10px;color:#5340c6;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Portfolio Market</p><h1 style="margin:0;font-size:30px;line-height:1.18;letter-spacing:-.03em">${escapeHtml(heading)}</h1></td></tr><tr><td style="padding:8px 40px 28px;color:#5f6762;font-size:15px;line-height:1.7">${body}</td></tr>${actionHtml}<tr><td style="border-top:1px solid #ecefec;padding:20px 40px;color:#89918d;font-size:12px;line-height:1.5">${footer}</td></tr></table></td></tr></table></body></html>`;
 }
@@ -243,17 +239,15 @@ export function renderEmailTemplate(type: EmailTemplateType, variables: EmailTem
 }
 
 function unsubscribeSignature(encodedUserId: string): string {
-  return createHmac("sha256", env.EMAIL_UNSUBSCRIBE_SECRET).update(encodedUserId).digest("base64url");
+  return createHmac("sha256", env.JWT_REFRESH_SECRET).update(`marketing-unsubscribe:${encodedUserId}`).digest("base64url");
 }
 
 export function createMarketingUnsubscribeToken(userId: string): string {
-  if (!env.EMAIL_UNSUBSCRIBE_SECRET) throw new Error("Promotion email unsubscribe secret is not configured");
   const encodedUserId = Buffer.from(userId, "utf8").toString("base64url");
   return `${encodedUserId}.${unsubscribeSignature(encodedUserId)}`;
 }
 
 export function verifyMarketingUnsubscribeToken(token: string): string | null {
-  if (!env.EMAIL_UNSUBSCRIBE_SECRET) return null;
   const [encodedUserId, signature, extra] = token.split(".");
   if (!encodedUserId || !signature || extra) return null;
   const expected = Buffer.from(unsubscribeSignature(encodedUserId));

@@ -6,8 +6,7 @@ import UploadAssetModel from "./models/upload-asset.ts";
 import { getR2Client } from "./config/r2.ts";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { connectDatabase, disconnectDatabase } from "./config/database.ts";
-
-interface ClerkSeedUser { id: string; first_name: string | null; last_name: string | null; email_addresses: Array<{ email_address: string }> }
+import bcrypt from "bcryptjs";
 
 const seedThemes = [
   { name: "Aurora Studio", slug: "aurora-studio", color: "172033", accent: "F4B942", stack: ["React", "TypeScript", "Tailwind CSS"], priceMinor: 4900, shortDescription: "A luminous portfolio theme for independent design studios.", description: "A polished, responsive studio portfolio with project stories, services, testimonials, and a conversion-focused contact experience.", features: ["Responsive project grid", "Case study layouts", "Accessible navigation", "Dark mode"], featured: true },
@@ -61,25 +60,16 @@ async function seedSourceAsset(adminId: unknown, theme: (typeof seedThemes)[numb
   }
 }
 
-async function resolveClerkAdmin(email: string): Promise<ClerkSeedUser> {
-  if (!env.CLERK_SECRET_KEY) throw new Error("CLERK_SECRET_KEY is required. The seed will not create a database-only admin.");
-  const endpoint = `https://api.clerk.com/v1/users?email_address[]=${encodeURIComponent(email)}&limit=2`;
-  const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` } });
-  const data = await response.json() as ClerkSeedUser | ClerkSeedUser[] | { message?: string };
-  if (!response.ok) throw new Error(`Unable to resolve the Clerk admin: ${!Array.isArray(data) && "message" in data ? data.message ?? response.statusText : response.statusText}`);
-  const user = Array.isArray(data) ? data.find((item) => item.email_addresses.some((address) => address.email_address.toLowerCase() === email)) : data as ClerkSeedUser;
-  if (!user?.id) throw new Error(`No Clerk user exists for ${email}. Sign up in Clerk first, then run npm run seed again.`);
-  if (!user.email_addresses.some((address) => address.email_address.toLowerCase() === email)) throw new Error("ADMIN_EMAIL does not belong to the resolved Clerk user.");
-  return user;
-}
-
 async function seed() {
   const email = env.ADMIN_EMAIL.trim().toLowerCase();
-  const clerk = await resolveClerkAdmin(email);
+  if (!env.ADMIN_PASSWORD || env.ADMIN_PASSWORD.length < 12 || !/[a-z]/.test(env.ADMIN_PASSWORD) || !/[A-Z]/.test(env.ADMIN_PASSWORD) || !/\d/.test(env.ADMIN_PASSWORD)) {
+    throw new Error("ADMIN_PASSWORD must be at least 12 characters and include uppercase, lowercase, and a number");
+  }
   await connectDatabase();
-  const name = env.ADMIN_NAME || [clerk.first_name, clerk.last_name].filter(Boolean).join(" ") || "System Admin";
-  const admin = await UserModel.findOneAndUpdate({ $or: [{ clerkId: clerk.id }, { email }] }, { $set: { clerkId: clerk.id, email, name, role: "admin", status: "active", provider: "email", joinedAt: new Date() }, $unset: { blockedAt: 1, blockedBy: 1, deletedAt: 1 } }, { returnDocument: "after", upsert: true, runValidators: true });
-  console.log(`Admin ready and linked to Clerk: ${admin.email} (${clerk.id})`);
+  const name = env.ADMIN_NAME || "System Admin";
+  const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
+  const admin = await UserModel.findOneAndUpdate({ email }, { $set: { email, name, role: "admin", status: "active", joinedAt: new Date(), provider: "email", emailVerified: true, passwordHash }, $setOnInsert: { welcomeEmailState: "sent" }, $unset: { blockedAt: 1, blockedBy: 1, deletedAt: 1 } }, { returnDocument: "after", upsert: true, runValidators: true });
+  console.log(`Admin login ready for ${admin.email}.`);
   for (const theme of seedThemes) {
     const imageUrl = `https://placehold.co/1200x800/${theme.color}/${theme.accent}?text=${encodeURIComponent(theme.name)}`;
     const asset = await UploadAssetModel.findOneAndUpdate(

@@ -1,9 +1,9 @@
-import { Show, UserButton } from "@clerk/react";
 import { ArrowLeftRight, ChevronDown, LayoutDashboardIcon, LayoutTemplate, LibraryBig, Menu, PackageCheck, ReceiptText, ShoppingBag, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAppAuth } from "../context/auth-store";
 import { useCart } from "../context/cart-store";
+import { AccountButton } from "./account-button";
 
 const libraryLinks = [
   { to: "/purchase", label: "Purchases", description: "Themes you own", icon: PackageCheck },
@@ -75,7 +75,7 @@ function Header() {
           <span>Themes</span>
         </NavLink>
 
-        <Show when="signed-in">
+        {user && <>
           {user?.role === "customer" && <div className="library-nav" ref={libraryRef}>
             <button
               ref={triggerRef}
@@ -111,23 +111,23 @@ function Header() {
               </NavLink>)}
             </div>
           </div>}
-          {user?.role === "admin" && <NavLink className={({ isActive }) => `site-nav-link nav-admin-link ${isActive ? "active" : ""}`} to="/admin">
+          {user?.role === "admin" && <NavLink className={({ isActive }) => `site-nav-link nav-admin-link ${isActive ? "active" : ""}`} to="/dashboard/insights">
             <LayoutDashboardIcon size={18} strokeWidth={1.9} />
             <span>Dashboard</span>
           </NavLink>}
-        </Show>
+        </>}
       </nav>
 
       <div className="auth-actions">
-        <Show when="signed-out">
+        {!user && <>
           <Link className="text-button" to="/sign-in">Sign in</Link>
           <Link className="primary-button small" to="/sign-up">Create account</Link>
-        </Show>
+        </>}
 
-        <Show when="signed-in">
-          <UserButton />
+        {user && <>
+          <AccountButton />
           {user?.role !== "admin" && <Link className="cart-link" to="/cart" aria-label={`Cart with ${count} items`}><ShoppingBag size={19} />{count > 0 && <span>{count}</span>}</Link>}
-        </Show>
+        </>}
         <button
           ref={mobileTriggerRef}
           type="button"
@@ -158,7 +158,7 @@ function Header() {
           <LayoutTemplate size={18} />
           <span><strong>Themes</strong><small>Browse portfolio templates</small></span>
         </NavLink>
-        <Show when="signed-in">
+        {user && <>
           {user?.role === "customer" && libraryLinks.map(({ to, label, description, icon: Icon }) => <NavLink
             key={to}
             tabIndex={mobileMenuOpen ? 0 : -1}
@@ -169,17 +169,17 @@ function Header() {
             <Icon size={18} />
             <span><strong>{label}</strong><small>{description}</small></span>
           </NavLink>)}
-          {user?.role === "admin" && <NavLink tabIndex={mobileMenuOpen ? 0 : -1} className={({ isActive }) => isActive ? "active" : ""} to="/admin" onClick={() => setMobileOpen(false)}>
+          {user?.role === "admin" && <NavLink tabIndex={mobileMenuOpen ? 0 : -1} className={({ isActive }) => isActive ? "active" : ""} to="/dashboard/insights" onClick={() => setMobileOpen(false)}>
             <LayoutDashboardIcon size={18} />
             <span><strong>Dashboard</strong><small>Manage your marketplace</small></span>
           </NavLink>}
-        </Show>
-        <Show when="signed-out">
+        </>}
+        {!user && <>
           <div className="mobile-auth-links">
             <Link tabIndex={mobileMenuOpen ? 0 : -1} to="/sign-in" onClick={() => setMobileOpen(false)}>Sign in</Link>
             <Link tabIndex={mobileMenuOpen ? 0 : -1} to="/sign-up" onClick={() => setMobileOpen(false)}>Create account</Link>
           </div>
-        </Show>
+        </>}
       </nav></> : <Skeleton />}
   </header>;
 }

@@ -2,17 +2,18 @@ import cors from 'cors';
 import helmet from 'helmet';
 import express from 'express'
 import mongoose from 'mongoose';
+import cookieParser from 'cookie-parser';
 import env from './config/env.ts';
 import mainRoutes from './routes/main.route.ts'
 
-import { clerkMiddleware } from '@clerk/express'
 import { verifyRegion } from './middlewares/verifyRegion.ts';
 import { connectDatabase } from './config/database.ts';
-import { errorHandler, notFound } from './middlewares/error.ts';
+import { errorHandler, notFound, requestContext } from './middlewares/error.ts';
 import { stripeWebhookHandler } from './routes/webhook.route.ts';
 import { paypalWebhookHandler } from './routes/paypal-webhook.route.ts';
 import { paymobWebhookHandler } from './routes/paymob-webhook.route.ts';
 import { emailConfigurationIssues } from './services/email.service.ts';
+import { requireTrustedOrigin } from './middlewares/origin.ts';
 
 
 const app = express()
@@ -28,20 +29,16 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({ origin: env.CLIENT_URL.split(",").map((value) => value.trim()), credentials: true }));
 
 app.use(verifyRegion);
-
-app.use(clerkMiddleware({
-  publishableKey: env.CLERK_PUBLISHABLE_KEY,
-  secretKey: env.CLERK_SECRET_KEY,
-  authorizedParties: env.CLIENT_URL.split(",").map((value) => value.trim()),
-}));
+app.use(requestContext);
 
 app.post("/api/v1/webhooks/stripe", express.raw({ type: "application/json", limit: "256kb" }), stripeWebhookHandler);
 app.post("/api/v1/webhooks/paypal", express.raw({ type: "application/json", limit: "256kb" }), paypalWebhookHandler);
 app.post("/api/v1/webhooks/paymob", express.json({ limit: "256kb" }), paymobWebhookHandler);
 
 app.use(express.json({ limit: "1mb" }));
+app.use(cookieParser());
 
-app.get("/health/live", (_req, res) => { res.json({ status: "ok" }); });
+app.get("/health/live", (_req, res) => { res.json({ status: "ok", service: "Foliokit Server", version: "1.0.0", origin: env.CLIENT_URL }); });
 
 app.get("/health/ready", (_req, res) => {
   const ready = mongoose.connection.readyState === 1;
@@ -49,7 +46,7 @@ app.get("/health/ready", (_req, res) => {
 });
 
 
-app.use("/api/v1", mainRoutes)
+app.use("/api/v1", requireTrustedOrigin, mainRoutes)
 
 app.use(notFound);
 

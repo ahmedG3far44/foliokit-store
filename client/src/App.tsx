@@ -2,8 +2,6 @@ import Home from './routes/home'
 import Protected from './components/protected'
 
 import { Navigate } from 'react-router-dom'
-import { UserButton } from '@clerk/react'
-import { useAppAuth } from './context/auth-store'
 import { AuthProvider } from './context/auth-context'
 import { AdminLayout } from './components/admin/admin-layout'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
@@ -14,7 +12,6 @@ import { CartProvider } from './context/cart-context'
 import { Spinner } from './components/ui/spinner'
 import Footer from './components/footer'
 import NotFoundPage from './routes/error/not-found'
-import { Logo } from './components/header'
 
 const InsightsPage = lazy(() => import('./routes/admin/insights'))
 const UsersPage = lazy(() => import('./routes/admin/users'))
@@ -45,7 +42,7 @@ const ThemePreviewPage = lazy(() => import('./routes/theme-preview'))
 
 function SiteFooter() {
   const location = useLocation()
-  if (location.pathname.startsWith('/admin') || location.pathname.startsWith('/sign-in') || location.pathname.startsWith('/sign-up')) return null
+  if (location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/admin') || location.pathname.startsWith('/sign-in') || location.pathname.startsWith('/sign-up')) return null
   if (location.pathname.includes('/preview')) return null
   return <Footer />
 }
@@ -58,9 +55,8 @@ function App() {
         <ToastProvider><CartProvider>
           <Suspense fallback={<div className="page-loader"><Spinner size="md" /></div>}><Routes>
             <Route index path='/' element={<Home />} />
-            <Route path='/dashboard' element={<Protected><UserDashboard /></Protected>} />
-            <Route path='/profile' element={<Protected><UserDashboard /></Protected>} />
-            <Route path='/subscription' element={<Protected><UserDashboard /></Protected>} />
+            <Route path='/profile' element={<Protected><Navigate to="/" replace /></Protected>} />
+            <Route path='/subscription' element={<Protected><Navigate to="/" replace /></Protected>} />
             <Route path='/themes' element={<ThemesPage />} />
             <Route path='/themes/:slug/preview' element={<ThemePreviewPage />} />
             <Route path='/themes/:slug' element={<ThemeDetailPage />} />
@@ -78,8 +74,9 @@ function App() {
             <Route path='/orders/:id' element={<Protected customerOnly><OrderDetailPage /></Protected>} />
             <Route path='/transactions' element={<Protected customerOnly><CustomerTransactionsPage /></Protected>} />
             <Route path='/checkout/cancel' element={<Protected><CheckoutCancel /></Protected>} />
-            <Route path='/admin' element={<Protected adminOnly><AdminLayout /></Protected>}>
-              <Route index element={<InsightsPage />} />
+            <Route path='/dashboard' element={<Protected adminOnly><AdminLayout /></Protected>}>
+              <Route index element={<Navigate to="insights" replace />} />
+              <Route path='insights' element={<InsightsPage />} />
               <Route path='users' element={<UsersPage />} />
               <Route path='transactions' element={<TransactionsPage />} />
               <Route path='themes' element={<AdminThemesPage />} />
@@ -92,36 +89,13 @@ function App() {
               <Route path='discounts' element={<AdminDiscountsPage />} />
               <Route path='promotions' element={<PromotionsPage />} />
             </Route>
+            <Route path='/admin/*' element={<Navigate to="/dashboard/insights" replace />} />
             <Route path='*' element={<NotFoundPage />} />
           </Routes><SiteFooter /></Suspense>
         </CartProvider></ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   )
-}
-
-function UserDashboard() {
-  const { user } = useAppAuth();
-
-  if (user?.role !== "admin") {
-    return <Navigate to="/" />;
-  }
-
-  return <div className='flex flex-col justify-between h-screen'>
-    <header className='container mx-auto flex justify-between items-center py-4'>
-      <Logo />
-
-      <div className="flex items-center gap-2">
-        <UserButton />
-      </div>
-    </header>
-    <main className='flex-1 flex flex-col justify-start items-center gap-2 mt-72'>
-      <span className="eyebrow">Your account</span>
-      <h1>Welcome back, {user?.name}.</h1>
-      <p>Your account is active. Browse the theme library</p>
-
-    </main>
-  </div>;
 }
 
 export default App

@@ -1,12 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
-import { getAuth } from "@clerk/express";
 import { AppError } from "../utils/app-error.ts";
 
 const buckets = new Map<string, { count: number; resetsAt: number }>();
 
 export function rateLimit(name: string, limit: number, windowMs: number, useUser = false) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const userId = useUser ? getAuth(req).userId : null;
+    const userId = useUser ? req.currentUser?.id : null;
     const key = `${name}:${userId ?? req.ip}`;
     const now = Date.now();
     let bucket = buckets.get(key);

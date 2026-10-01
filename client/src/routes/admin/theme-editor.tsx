@@ -258,7 +258,7 @@ export default function AdminThemeEditorPage() {
     try {
       const theme = await save.run(id ? api.put<ThemeType>(`/admin/themes/${id}`, body) : api.post<ThemeType>("/admin/themes", body));
       notify(id ? "Theme updated" : "Draft theme created");
-      navigate(`/admin/themes/${theme.id}/edit`, { replace: true });
+      navigate(`/dashboard/themes/${theme.id}/edit`, { replace: true });
     } catch (error) {
       const serverErrors = mapServerErrors(error);
       if (Object.keys(serverErrors).length) setErrors((current) => ({ ...current, ...serverErrors }));
@@ -271,13 +271,13 @@ export default function AdminThemeEditorPage() {
     message={request.error}
     onRetry={id ? () => window.location.reload() : undefined}
     retryLabel="Reload theme"
-    backTo="/admin/themes"
+    backTo="/dashboard/themes"
     backLabel="Back to theme library"
   />;
   const busy = save.isLoading || Boolean(uploading);
 
   return <main className="admin-page">
-    <Link className="back-link" to="/admin/themes"><ArrowLeft size={16} />Theme library</Link>
+    <Link className="back-link" to="/dashboard/themes"><ArrowLeft size={16} />Theme library</Link>
     <div className="editor-heading"><div><span className="eyebrow">Catalog editor</span><h1>{id ? "Edit theme" : "Create a theme"}</h1><p>Add one animated preview, 2–10 theme images, 1–2 tutorial videos, and the private source ZIP.</p></div></div>
     {save.error && <ErrorMessage message={save.error} onDismiss={save.clearError} />}
     <form className="theme-editor" onSubmit={submit} noValidate>

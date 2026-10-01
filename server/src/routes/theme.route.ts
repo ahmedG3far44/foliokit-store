@@ -1,11 +1,11 @@
-import { getAuth } from "@clerk/express";
+import type { Request } from "express";
 import { Router } from "express";
-import UserModel from "../models/user.ts";
+import { getOptionalAuthenticatedUser } from "../middlewares/auth.ts";
 import { catalogQuerySchema, parseOrThrow, slugSchema } from "../schemas/marketplace.ts";
 import { getPublishedTheme, listPublishedThemes } from "../services/theme.service.ts";
 
 const router = Router();
-async function optionalUserId(req: Parameters<typeof getAuth>[0]): Promise<string | undefined> { const clerkId = getAuth(req).userId; if (!clerkId) return undefined; const user = await UserModel.findOne({ clerkId }).select("_id").lean(); return user ? String(user._id) : undefined; }
+async function optionalUserId(req: Request): Promise<string | undefined> { const user = await getOptionalAuthenticatedUser(req); return user ? String(user._id) : undefined; }
 router.get("/", async (req, res, next) => { try { res.json({ success: true, data: await listPublishedThemes(parseOrThrow(catalogQuerySchema, req.query), await optionalUserId(req)) }); } catch (error) { next(error); } });
 router.get("/:slug", async (req, res, next) => { try { const { slug } = parseOrThrow(slugSchema, req.params); res.json({ success: true, data: await getPublishedTheme(slug, await optionalUserId(req)) }); } catch (error) { next(error); } });
 export default router;
