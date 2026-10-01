@@ -54,11 +54,11 @@ cp client/.env.production.example client/.env.production
 cp server/.env.production.example server/.env.production
 ```
 
-5. Replace every placeholder. Use the same Clerk production publishable key for `VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_PUBLISHABLE_KEY`. Use a long MongoDB password containing only letters, numbers, underscores, and hyphens, then copy it unchanged into both `MONGO_INITDB_ROOT_PASSWORD` and `MONGODB_URI`.
+5. Replace every placeholder. Use the same Clerk production publishable key for `VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_PUBLISHABLE_KEY`. Put the MongoDB Atlas connection string in `MONGO_URI`, URL-encoding any special characters in its username or password, and allow the production server's public IP in Atlas Network Access.
 6. Start the stack. `--env-file` is required because Vite variables are compiled into the browser bundle at image-build time:
 
 ```sh
-docker compose --env-file client/.env.production -f docker-compose.production.yaml up -d --build
+docker compose --env-file client/.env.production -f docker-compose.production.yaml up -d --build --remove-orphans
 docker compose --env-file client/.env.production -f docker-compose.production.yaml ps
 ```
 
@@ -68,7 +68,7 @@ Nginx creates a short-lived self-signed certificate only for the first boot. Aft
 docker compose --env-file client/.env.production -f docker-compose.production.yaml logs -f certbot nginx
 ```
 
-For upgrades, back up MongoDB, deploy the new source, and run the production `up -d --build` command again. Compose preserves MongoDB and certificate volumes. `docker compose down` keeps them; do not add `--volumes` unless you intentionally want to erase persisted data and certificates.
+For upgrades, back up MongoDB Atlas, deploy the new source, and run the production `up -d --build` command again. Compose preserves the certificate volumes. `docker compose down` keeps them; do not add `--volumes` unless you intentionally want to erase persisted certificates.
 
 ### Automatic production deployment from GitHub
 

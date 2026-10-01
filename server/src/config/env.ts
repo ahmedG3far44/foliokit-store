@@ -7,7 +7,7 @@ const env = {
   PORT: Number(process.env.PORT ?? 5000),
 
   CLIENT_URL: process.env.CLIENT_URL ?? "http://localhost:5173",
-  MONGODB_URI: process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/saas",
+  MONGODB_URI: process.env.MONGO_URI ?? process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/saas",
 
   CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY ?? "",
   CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY ?? "",

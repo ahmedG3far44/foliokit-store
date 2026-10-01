@@ -1,22 +1,6 @@
 name: foliokit-production
 
 services:
-  mongodb:
-    image: mongo:4.4
-    restart: unless-stopped
-    env_file:
-      - ${SERVER_ENV_FILE:-./server/.env.production}
-    volumes:
-      - mongodb_production_data:/data/db
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --username \"$$MONGO_INITDB_ROOT_USERNAME\" --password \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval \"quit(db.adminCommand({ ping: 1 }).ok ? 0 : 2)\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
   server:
     build:
       context: .
@@ -32,12 +16,8 @@ services:
       CLIENT_URL: https://foliokit.store
       PUBLIC_API_URL: https://api.foliokit.store
       LOCAL_MEDIA_BASE_URL: https://api.foliokit.store
-    depends_on:
-      mongodb:
-        condition: service_healthy
     networks:
       - frontend
-      - backend
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
@@ -119,12 +99,9 @@ services:
       - frontend
 
 volumes:
-  mongodb_production_data:
   certbot_challenges:
   certbot_data:
   nginx_tls_certs:
 
 networks:
   frontend:
-  backend:
-    internal: true
