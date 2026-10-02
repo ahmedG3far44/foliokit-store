@@ -189,7 +189,7 @@ export default Header;
 
 
 export function Logo() {
-  return (<Link className="text-white font-black font-sans text-xl leading-3 transition-all duration-200 ease-in-out hover:opacity-75 " to="/">FOLIO <span className="text-brand">KIT</span></Link>)
+  return (<Link className="text-white font-black font-sans text-xl leading-3 transition-all duration-200 ease-in-out hover:opacity-75 " to="/">POLIO <span className="text-brand">KIT</span></Link>)
 }
 
 export function Skeleton() {
