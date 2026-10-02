@@ -26,7 +26,11 @@ ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
 RUN npm run build
 
-FROM nginx:1.27-alpine AS production
+FROM builder AS test
+
+RUN npm run lint
+
+FROM nginx:stable-alpine AS production
 
 RUN apk add --no-cache openssl
 

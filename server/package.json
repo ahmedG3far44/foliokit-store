@@ -12,6 +12,8 @@
     "seed:compiled": "node dist/server/src/seed.js",
     "r2:setup": "npm run build --silent && node dist/server/src/setup-r2.js",
     "r2:setup:compiled": "node dist/server/src/setup-r2.js",
+    "preflight": "npm run build --silent && node dist/server/src/preflight.js",
+    "preflight:compiled": "node dist/server/src/preflight.js",
     "test": "npm run build --silent && node --test dist/server/src/__tests__/marketplace.test.js dist/server/src/__tests__/auth.test.js"
   },
   "keywords": [],

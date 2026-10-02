@@ -1,74 +1,76 @@
-name: Deploy FOLIOKIT
+name: Verify and deploy production
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foliokit-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
-    runs-on: self-hosted
+    name: Test and deploy on the VPS
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 30
+    env:
+      DEPLOYMENT_ID: ${{ github.sha }}
+      ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+      JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+      ACCESS_TOKEN_TTL_MINUTES: ${{ secrets.ACCESS_TOKEN_TTL_MINUTES }}
+      REFRESH_TOKEN_TTL_DAYS: ${{ secrets.REFRESH_TOKEN_TTL_DAYS }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+      VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_MEDIA_URL_TTL_SECONDS: ${{ secrets.R2_MEDIA_URL_TTL_SECONDS }}
+      R2_DOWNLOAD_URL_TTL_SECONDS: ${{ secrets.R2_DOWNLOAD_URL_TTL_SECONDS }}
+      MAX_IMAGE_SIZE_MB: ${{ secrets.MAX_IMAGE_SIZE_MB }}
+      MAX_VIDEO_SIZE_MB: ${{ secrets.MAX_VIDEO_SIZE_MB }}
+      MAX_THEME_ZIP_SIZE_MB: ${{ secrets.MAX_THEME_ZIP_SIZE_MB }}
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      ADMIN_NAME: ${{ secrets.ADMIN_NAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM_ACCOUNT: ${{ secrets.EMAIL_FROM_ACCOUNT }}
+      EMAIL_FROM_BILLING: ${{ secrets.EMAIL_FROM_BILLING }}
+      EMAIL_FROM_MARKETING: ${{ secrets.EMAIL_FROM_MARKETING }}
+      EMAIL_REPLY_TO: ${{ secrets.EMAIL_REPLY_TO }}
+      PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+      PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+      PAYPAL_WEBHOOK_ID: ${{ secrets.PAYPAL_WEBHOOK_ID }}
+      PAYPAL_ENVIRONMENT: ${{ secrets.PAYPAL_ENVIRONMENT }}
+      PAYMOB_SECRET_KEY: ${{ secrets.PAYMOB_SECRET_KEY }}
+      PAYMOB_PUBLIC_KEY: ${{ secrets.PAYMOB_PUBLIC_KEY }}
+      PAYMOB_INTEGRATION_ID: ${{ secrets.PAYMOB_INTEGRATION_ID }}
+      PAYMOB_INTEGRATION_IDS: ${{ secrets.PAYMOB_INTEGRATION_IDS }}
+      PAYMOB_HMAC_SECRET: ${{ secrets.PAYMOB_HMAC_SECRET }}
+      PAYMOB_BASE_URL: ${{ secrets.PAYMOB_BASE_URL }}
+      PAYMOB_CURRENCY: ${{ secrets.PAYMOB_CURRENCY }}
 
     steps:
-      - name: Deploy application
-        env:
-          PORT: ${{secrets.PORT}}
-          NODE_ENV: ${{secrets.NODE_ENV}}
-          CLIENT_URL: ${{secrets.CLIENT_URL}}
+      - name: Check out the pushed commit
+        uses: actions/checkout@v6
+        with:
+          clean: true
 
-          PUBLIC_API_URL: ${{secrets.PUBLIC_API_URL}}
-          ACME_EMAIL: ${{secrets.ACME_EMAIL}}
-
-          MONGODB_URI: ${{secrets.MONGODB_URI}}
-
-          JWT_ACCESS_SECRET: ${{secrets.JWT_ACCESS_SECRET}}
-          JWT_REFRESH_SECRET: ${{secrets.JWT_REFRESH_SECRET}}
-          ACCESS_TOKEN_TTL_MINUTES: ${{secrets.ACCESS_TOKEN_TTL_MINUTES}}
-          REFRESH_TOKEN_TTL_DAYS: ${{secrets.REFRESH_TOKEN_TTL_DAYS}}
-          GOOGLE_CLIENT_ID: ${{secrets.GOOGLE_CLIENT_ID}}
-          STRIPE_SECRET_KEY: ${{secrets.STRIPE_SECRET_KEY}}
-          STRIPE_WEBHOOK_SECRET: ${{secrets.STRIPE_WEBHOOK_SECRET}}
-          CLOUDFLARE_ACCOUNT_ID: ${{secrets.CLOUDFLARE_ACCOUNT_ID}}
-          R2_ACCESS_KEY_ID: ${{secrets.R2_ACCESS_KEY_ID}}
-          R2_SECRET_ACCESS_KEY: ${{secrets.R2_SECRET_ACCESS_KEY}}
-          R2_BUCKET: ${{secrets.R2_BUCKET}}
-          R2_MEDIA_URL_TTL_SECONDS: ${{secrets.R2_MEDIA_URL_TTL_SECONDS}}
-          R2_DOWNLOAD_URL_TTL_SECONDS: ${{secrets.R2_DOWNLOAD_URL_TTL_SECONDS}}
-          LOCAL_UPLOAD_DIR: ${{secrets.LOCAL_UPLOAD_DIR}}
-          LOCAL_MEDIA_BASE_URL: ${{secrets.LOCAL_MEDIA_BASE_URL}}
-          MAX_IMAGE_SIZE_MB: ${{secrets.MAX_IMAGE_SIZE_MB}}
-          MAX_VIDEO_SIZE_MB: ${{secrets.MAX_VIDEO_SIZE_MB}}
-          MAX_THEME_ZIP_SIZE_MB: ${{secrets.MAX_THEME_ZIP_SIZE_MB}}
-
-          ADMIN_EMAIL: ${{secrets.ADMIN_EMAIL}}
-          ADMIN_NAME: ${{secrets.ADMIN_NAME}}
-          ADMIN_PASSWORD: ${{secrets.ADMIN_PASSWORD}}
-
-          RESEND_API_KEY: ${{secrets.RESEND_API_KEY}}
-
-          EMAIL_FROM_ACCOUNT: ${{secrets.EMAIL_FROM_ACCOUNT}}
-          EMAIL_FROM_BILLING: ${{secrets.EMAIL_FROM_BILLING}}
-          EMAIL_FROM_MARKETING: ${{secrets.EMAIL_FROM_MARKETING}}
-          EMAIL_REPLY_TO: ${{secrets.EMAIL_REPLY_TO}}
-
-          PAYPAL_CLIENT_ID: ${{secrets.PAYPAL_CLIENT_ID}}
-          PAYPAL_CLIENT_SECRET: ${{secrets.PAYPAL_CLIENT_SECRET}}
-          PAYPAL_WEBHOOK_ID: ${{secrets.PAYPAL_WEBHOOK_ID}}
-          PAYPAL_ENVIRONMENT: ${{secrets.PAYPAL_ENVIRONMENT}}
-
-          PAYMOB_SECRET_KEY: ${{secrets.PAYMOB_SECRET_KEY}}
-          PAYMOB_PUBLIC_KEY: ${{secrets.PAYMOB_PUBLIC_KEY}}
-          PAYMOB_INTEGRATION_ID: ${{secrets.PAYMOB_INTEGRATION_ID}}
-          PAYMOB_INTEGRATION_IDS: ${{secrets.PAYMOB_INTEGRATION_IDS}}
-          PAYMOB_HMAC_SECRET: ${{secrets.PAYMOB_HMAC_SECRET}}
-          PAYMOB_BASE_URL: ${{secrets.PAYMOB_BASE_URL}}
-          PAYMOB_CURRENCY: ${{secrets.PAYMOB_CURRENCY}}
-
-          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
-          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
-
+      - name: Verify Docker access
         run: |
-          cd /home/foliokit/foliokit-store
+          docker version
+          docker compose version
 
-          chmod +x deploy.sh
-
+      - name: Test and deploy
+        run: |
+          chmod +x ./deploy.sh
           ./deploy.sh

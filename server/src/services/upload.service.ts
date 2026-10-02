@@ -47,7 +47,7 @@ function generateFileName(originalName: string): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const datetime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}-${pad(now.getMinutes())}`;
-  return `${datetime}.${ext}`;
+  return `${datetime}-${randomUUID()}.${ext}`;
 }
 
 function localStorageEnabled(): boolean {

@@ -57,10 +57,40 @@ const env = {
   MAX_THEME_ZIP_SIZE_MB: Number(process.env.MAX_THEME_ZIP_SIZE_MB ?? 100),
 };
 
+function isPlaceholder(value: string): boolean {
+  return !value.trim() || /(?:replace[_-]?me|change[_-]?me|example\.com|username:password|your[_-])/i.test(value);
+}
+
 if (env.NODE_ENV === "production") {
-  if (env.JWT_ACCESS_SECRET.length < 32) throw new Error("JWT_ACCESS_SECRET must contain at least 32 characters in production");
-  if (env.JWT_REFRESH_SECRET.length < 32) throw new Error("JWT_REFRESH_SECRET must contain at least 32 characters in production");
-  if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) throw new Error("JWT access and refresh secrets must be different");
+  const issues: string[] = [];
+  const requiredValues = {
+    MONGODB_URI: env.MONGODB_URI,
+    GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
+    STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET,
+    PAYPAL_CLIENT_ID: env.PAYPAL_CLIENT_ID,
+    PAYPAL_CLIENT_SECRET: env.PAYPAL_CLIENT_SECRET,
+    PAYPAL_WEBHOOK_ID: env.PAYPAL_WEBHOOK_ID,
+    RESEND_API_KEY: env.RESEND_API_KEY,
+    CLOUDFLARE_ACCOUNT_ID: env.R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID: env.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: env.R2_SECRET_ACCESS_KEY,
+    R2_BUCKET: env.R2_BUCKET,
+  };
+  for (const [name, value] of Object.entries(requiredValues)) {
+    if (isPlaceholder(value)) issues.push(`${name} is missing or still contains a placeholder`);
+  }
+  if (!env.CLIENT_URL.split(",").every((url) => url.trim().startsWith("https://"))) issues.push("CLIENT_URL must contain HTTPS origins");
+  if (!env.PUBLIC_API_URL.startsWith("https://")) issues.push("PUBLIC_API_URL must use HTTPS");
+  if (!/^mongodb(?:\+srv)?:\/\//.test(env.MONGODB_URI)) issues.push("MONGODB_URI is not a MongoDB connection string");
+  if (env.JWT_ACCESS_SECRET.length < 32) issues.push("JWT_ACCESS_SECRET must contain at least 32 characters");
+  if (env.JWT_REFRESH_SECRET.length < 32) issues.push("JWT_REFRESH_SECRET must contain at least 32 characters");
+  if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) issues.push("JWT access and refresh secrets must be different");
+  if (!env.STRIPE_SECRET_KEY.startsWith("sk_live_")) issues.push("STRIPE_SECRET_KEY must be a live-mode key");
+  if (!env.STRIPE_WEBHOOK_SECRET.startsWith("whsec_")) issues.push("STRIPE_WEBHOOK_SECRET is not a webhook signing secret");
+  if (env.PAYPAL_ENVIRONMENT !== "live") issues.push("PAYPAL_ENVIRONMENT must be live");
+  if (!env.RESEND_API_KEY.startsWith("re_")) issues.push("RESEND_API_KEY is not a Resend API key");
+  if (issues.length) throw new Error(`Invalid production configuration:\n- ${issues.join("\n- ")}`);
 }
 
 

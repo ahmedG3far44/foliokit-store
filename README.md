@@ -6,12 +6,12 @@ A single-vendor marketplace for production-ready portfolio templates. Visitors b
 
 Requirements: Docker Desktop, or Docker Engine with Docker Compose v2.
 
-The repository has two independent environments and four private environment files:
+The repository has separate development and production configurations:
 
 | Environment | Client variables | Server variables | Public endpoints |
 | --- | --- | --- | --- |
 | Development | `client/.env.development` | `server/.env.development` | UI: `http://localhost:5173`; API: `http://localhost:5000` |
-| Production | `client/.env.production` | `server/.env.production` | UI: `https://foliokit.store`; API: `https://api.foliokit.store` |
+| Production | GitHub Actions secrets (or local `.env.production` files for a manual deploy) | GitHub Actions secrets | UI: `https://foliokit.store`; API: `https://api.foliokit.store` |
 
 The completed environment files are ignored by Git. Their `.example` counterparts contain every supported variable and are safe to commit.
 
@@ -47,7 +47,7 @@ Production uses Nginx to serve the React build on `foliokit.store` and reverse-p
 1. Provision a Linux server with Docker Engine and Compose v2.
 2. Create DNS `A` records for both `foliokit.store` and `api.foliokit.store` pointing to that server. Add matching `AAAA` records only when IPv6 is configured on the server.
 3. Allow inbound TCP ports 80 and 443, and ensure no other process is using them.
-4. Create the production environment files:
+4. For a one-off manual deployment, create the production environment files:
 
 ```sh
 cp client/.env.production.example client/.env.production
@@ -55,43 +55,46 @@ cp server/.env.production.example server/.env.production
 ```
 
 5. Replace every placeholder. Put the MongoDB Atlas connection string in `MONGODB_URI`, URL-encoding special characters in its username or password, and allow the production server's public IP in Atlas Network Access. Production uses Atlas directly; no MongoDB container is started.
-6. Start the stack. `--env-file` is required because Vite variables are compiled into the browser bundle at image-build time:
+6. Start the stack. Both files are passed to Compose so the API runtime variables and the Vite build variables are available:
 
 ```sh
-docker compose --env-file client/.env.production -f docker-compose.production.yaml up -d --build --remove-orphans
-docker compose --env-file client/.env.production -f docker-compose.production.yaml ps
+docker compose --env-file server/.env.production --env-file client/.env.production -f docker-compose.production.yaml up -d --build --remove-orphans --wait
+docker compose --env-file server/.env.production --env-file client/.env.production -f docker-compose.production.yaml ps
 ```
 
 Nginx creates a short-lived self-signed certificate only for the first boot. After DNS is reachable, Certbot replaces it with the trusted certificate and Nginx reloads automatically (normally within about one minute after issuance). Check issuance with:
 
 ```sh
-docker compose --env-file client/.env.production -f docker-compose.production.yaml logs -f certbot nginx
+docker compose --env-file server/.env.production --env-file client/.env.production -f docker-compose.production.yaml logs -f certbot nginx
 ```
 
 For upgrades, back up MongoDB Atlas, deploy the new source, and run the production `up -d --build` command again. Compose preserves the certificate volumes. `docker compose down` keeps them; do not add `--volumes` unless you intentionally want to erase persisted certificates.
 
 ### Automatic production deployment from GitHub
 
-The workflow at `.github/workflows/deploy-production.yml` runs after every push to `main` and can also be started manually from GitHub Actions. It connects to the VPS, fast-forwards its existing `main` checkout to the exact pushed commit, validates the production configuration, stops the running stack, rebuilds every changed image, starts the stack, waits for its health checks, and removes unused images.
+The workflow at `.github/workflows/deploy-production.yml` runs after every push to `main` and can also be started manually. It runs directly on the Linux self-hosted runner, checks out the exact pushed commit, builds and tests both images, validates live integrations, deploys the Compose stack, waits for container health checks, and verifies both public HTTPS endpoints. Concurrent pushes are serialized so two deployments cannot modify production at the same time. The preflight sends an idempotent message to Resend's non-human `delivered@resend.dev` test recipient to verify the API key and sender domain without emailing an administrator or customer.
 
-In the GitHub repository, open **Settings → Secrets and variables → Actions** and create these repository or `production` environment secrets:
+In the GitHub repository, open **Settings → Secrets and variables → Actions** and create these required repository secrets:
 
-- `VPS_HOST`: the VPS IP address or hostname.
-- `VPS_USERNAME`: the Linux deployment user.
-- `VPS_PASSWORD`: that user's SSH password.
-- `VPS_PORT`: optional; defaults to `22`.
-- `VPS_HOST_FINGERPRINT`: strongly recommended SHA-256 SSH host fingerprint, which prevents connecting to an impersonated server.
+- Core: `ACME_EMAIL`, `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`.
+- Google: `GOOGLE_CLIENT_ID`, `VITE_GOOGLE_CLIENT_ID` (the same web client ID).
+- Client: `VITE_BASE_URL` with the exact value `https://api.foliokit.store/api/v1`.
+- Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
+- Cloudflare R2: `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`.
+- Resend: `RESEND_API_KEY`, `EMAIL_FROM_ACCOUNT`, `EMAIL_FROM_BILLING`, `EMAIL_FROM_MARKETING`, `EMAIL_REPLY_TO`.
+- PayPal: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_ENVIRONMENT` (`live`).
 
-Under the **Variables** tab, optionally set `VPS_APP_PATH`. It defaults to `/var/www/foliokit-store`.
+Optional secrets include the token TTLs, upload size/URL TTL settings, administrator bootstrap values, and Paymob settings already referenced by the workflow.
 
 Prepare the VPS once before enabling the workflow:
 
-1. Clone this GitHub repository into `VPS_APP_PATH`, leave it on the `main` branch, and make sure `git fetch origin main` works non-interactively. Private repositories require a read-only deploy key or another GitHub credential on the VPS.
-2. Create `client/.env.production` and `server/.env.production` in that checkout. They remain ignored by Git and are not overwritten during deployment.
-3. Install Docker Engine and Docker Compose v2. Add `VPS_USERNAME` to the Docker group so it can run `docker compose` without `sudo`.
-4. Keep TCP ports 80 and 443 open for Nginx and certificate renewal.
+1. Give the self-hosted runner the default `self-hosted` and `linux` labels and keep its service running.
+2. Install Docker Engine, Docker Compose v2, Git, and `curl` on the VPS.
+3. Add the runner service account to the Docker group so `docker info` works without `sudo`, then restart the runner service after changing group membership.
+4. Keep TCP ports 80 and 443 open and ensure host Nginx/Apache is not already occupying them.
+5. Point both DNS records at the VPS before the first workflow run.
 
-Password authentication is supported as requested, although a dedicated SSH deploy key is safer for a long-lived production server.
+No SSH password or second server checkout is needed: the self-hosted runner is already executing on the deployment VPS, and GitHub supplies a clean checkout for each job.
 
 ### Production URLs
 
@@ -131,7 +134,7 @@ Password authentication is supported as requested, although a dedicated SSH depl
 
 #### Cloudflare R2 and Paymob
 
-- Configure the R2 bucket and production credentials, then run `docker compose --env-file client/.env.production -f docker-compose.production.yaml exec server npm run r2:setup:compiled` once so browser uploads allow `https://foliokit.store`.
+- Configure the R2 bucket and production credentials with Object Read & Write access. Every deployment performs a temporary multipart upload/download/delete check before replacing the live containers.
 - For Paymob, replace test keys, integration IDs, and HMAC secret with values from Live mode and keep `PUBLIC_API_URL=https://api.foliokit.store`.
 
 ## Run without Docker (optional)
@@ -158,8 +161,8 @@ The seed is idempotent. It creates or updates the administrator's hashed passwor
 
 - Set `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET`. Runtime credentials need Object Read & Write access to that bucket.
 - Placeholder R2 values are treated as unconfigured. Development automatically falls back to local storage; production returns a clear storage configuration error and never silently uses local files.
-- Run `npm run r2:setup` from `server` once with R2 Admin Read & Write credentials to configure browser upload CORS for `CLIENT_URL` and expose the `ETag` header. You can replace them with bucket-scoped Object Read & Write credentials afterward.
-- With Docker, use `docker compose exec server npm run r2:setup:compiled` locally or `docker compose --env-file client/.env.production -f docker-compose.production.yaml exec server npm run r2:setup:compiled` in production.
+- The browser sends 8 MiB chunks through the API, so the runtime R2 token only needs object read/write permission; bucket-level CORS administration is not required for the current upload path.
+- `npm run r2:setup` remains available if browser-to-R2 uploads are introduced later and bucket CORS needs to be configured with an administrative token.
 - The R2 bucket stays private. The API returns temporary signed preview URLs for images and videos; theme ZIP keys are never returned, and downloads always use shorter-lived signed URLs.
 - Set Stripe's webhook endpoint to `POST /api/v1/webhooks/stripe` for `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `refund.created`, and `refund.updated`.
 - Only a verified Stripe webhook with the expected amount and currency grants entitlements. Stripe returns customers to `/purchase`, which shows a processing state and polls until the webhook marks the order paid.
@@ -189,5 +192,5 @@ Validate the container definitions without starting services:
 
 ```sh
 docker compose config --quiet
-docker compose --env-file client/.env.production -f docker-compose.production.yaml config --quiet
+docker compose --env-file server/.env.production --env-file client/.env.production -f docker-compose.production.yaml config --quiet
 ```

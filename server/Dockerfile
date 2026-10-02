@@ -10,6 +10,10 @@ COPY shared/ /app/shared/
 
 RUN npm run build
 
+FROM builder AS test
+
+RUN npm test
+
 FROM node:24-alpine AS production
 
 WORKDIR /app/server

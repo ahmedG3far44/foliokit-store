@@ -74,6 +74,30 @@ function stripeClient(): Stripe {
   return new Stripe(env.STRIPE_SECRET_KEY);
 }
 
+export async function verifyStripeCredentials(): Promise<void> {
+  const stripe = stripeClient();
+  const [, endpoints] = await Promise.all([
+    stripe.balance.retrieve(),
+    stripe.webhookEndpoints.list({ limit: 100 }),
+  ]);
+  const expectedUrl = `${env.PUBLIC_API_URL}/api/v1/webhooks/stripe`;
+  const endpoint = endpoints.data.find((candidate) => candidate.url.replace(/\/$/, "") === expectedUrl && candidate.status === "enabled");
+  if (!endpoint) throw new Error(`Stripe has no enabled webhook endpoint at ${expectedUrl}`);
+  const enabledEvents = new Set(endpoint.enabled_events);
+  const acceptsAllEvents = enabledEvents.has("*");
+  for (const event of [
+    "checkout.session.completed",
+    "checkout.session.async_payment_succeeded",
+    "checkout.session.async_payment_failed",
+    "checkout.session.expired",
+    "charge.refunded",
+    "refund.created",
+    "refund.updated",
+  ] as const) {
+    if (!acceptsAllEvents && !enabledEvents.has(event)) throw new Error(`Stripe webhook is missing event ${event}`);
+  }
+}
+
 function successUrlWithSessionId(value: string): string {
   if (value.includes("{CHECKOUT_SESSION_ID}")) return value;
   return `${value}${value.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`;

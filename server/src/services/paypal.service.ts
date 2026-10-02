@@ -50,6 +50,12 @@ interface PaypalVerificationResponse {
   verification_status?: string;
 }
 
+interface PaypalWebhookResponse {
+  id?: string;
+  url?: string;
+  event_types?: Array<{ name?: string }>;
+}
+
 let accessTokenCache: { token: string; expiresAt: number } | null = null;
 
 function apiBaseUrl(): string {
@@ -88,6 +94,21 @@ async function accessToken(): Promise<string> {
   if (!response.ok || !body?.access_token) throw paypalError(response.status, body);
   accessTokenCache = { token: body.access_token, expiresAt: Date.now() + Math.max(60, (body.expires_in ?? 300) - 60) * 1000 };
   return body.access_token;
+}
+
+export async function verifyPaypalCredentials(): Promise<void> {
+  await accessToken();
+  if (!env.PAYPAL_WEBHOOK_ID) throw new Error("PAYPAL_WEBHOOK_ID is missing");
+  const webhook = await paypalRequest<PaypalWebhookResponse>(`/v1/notifications/webhooks/${encodeURIComponent(env.PAYPAL_WEBHOOK_ID)}`);
+  const expectedUrl = `${env.PUBLIC_API_URL}/api/v1/webhooks/paypal`;
+  if (webhook.id !== env.PAYPAL_WEBHOOK_ID || webhook.url?.replace(/\/$/, "") !== expectedUrl) {
+    throw new Error(`PayPal webhook must point to ${expectedUrl}`);
+  }
+  const configuredEvents = new Set(webhook.event_types?.map((event) => event.name));
+  const acceptsAllEvents = configuredEvents.has("*");
+  for (const event of ["PAYMENT.CAPTURE.COMPLETED", "PAYMENT.CAPTURE.DENIED", "PAYMENT.CAPTURE.REFUNDED"]) {
+    if (!acceptsAllEvents && !configuredEvents.has(event)) throw new Error(`PayPal webhook is missing event ${event}`);
+  }
 }
 
 async function paypalRequest<T>(path: string, init: { method?: string; body?: unknown; idempotencyKey?: string } = {}): Promise<T> {
