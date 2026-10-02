@@ -1,23 +1,23 @@
 name: foliokit-development
 
 services:
-  # mongodb:
-  #   image: mongo:4.4
-  #   container_name: foliokit-mongodb
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test:
-  #       [
-  #         "CMD",
-  #         "mongosh",
-  #         "--quiet",
-  #         "--eval",
-  #         "db.adminCommand('ping').ok"
-  #       ]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 10s
+  mongodb:
+    image: mongo:7.0
+    container_name: foliokit-mongodb
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "db.adminCommand('ping').ok"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   server:
     build:
@@ -34,16 +34,9 @@ services:
     expose:
       - "5000"
 
-    # Optional:
-    # expose only through nginx.
-    #
-    # If you also want to access the API directly from your machine:
-    # ports:
-    #   - "5000:5000"
-
-    # depends_on:
-    #   mongodb:
-    #     condition: service_healthy
+    depends_on:
+      - mongodb:
+          condition: service_healthy
 
     networks:
       - backend
@@ -62,10 +55,6 @@ services:
 
     expose:
       - "5173"
-
-    # Optional direct access:
-    # ports:
-    #   - "5173:5173"
 
     depends_on:
       - server

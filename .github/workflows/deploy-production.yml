@@ -1,83 +1,74 @@
-name: Deploy production
+name: Deploy FOLIOKIT
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: production-deployment
-  cancel-in-progress: false
-
 jobs:
   deploy:
-    name: Deploy to VPS
-    runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: 45
-    env:
-      DEPLOY_PATH: ${{ vars.VPS_APP_PATH || '/var/www/foliokit-store' }}
-      DEPLOY_SHA: ${{ github.sha }}
+    runs-on: self-hosted
 
     steps:
-      - name: Update and restart production containers
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+      - name: Deploy application
         env:
-          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
-          DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT || '22' }}
-          fingerprint: ${{ secrets.VPS_HOST_FINGERPRINT }}
-          envs: DEPLOY_PATH,DEPLOY_SHA
-          command_timeout: 40m
-          script: |
-            set -eu
+          PORT: ${{secrets.PORT}}
+          NODE_ENV: ${{secrets.NODE_ENV}}
+          CLIENT_URL: ${{secrets.CLIENT_URL}}
 
-            cd "$DEPLOY_PATH"
+          PUBLIC_API_URL: ${{secrets.PUBLIC_API_URL}}
+          ACME_EMAIL: ${{secrets.ACME_EMAIL}}
 
-            test -d .git || {
-              echo "Deployment directory is not a Git checkout: $DEPLOY_PATH" >&2
-              exit 1
-            }
-            test "$(git branch --show-current)" = "main" || {
-              echo "The VPS checkout must be on the main branch" >&2
-              exit 1
-            }
-            test -z "$(git status --porcelain)" || {
-              echo "The VPS checkout has local changes; deployment stopped to avoid overwriting them" >&2
-              git status --short
-              exit 1
-            }
-            test -f client/.env.production || {
-              echo "Missing client/.env.production on the VPS" >&2
-              exit 1
-            }
-            test -f server/.env.production || {
-              echo "Missing server/.env.production on the VPS" >&2
-              exit 1
-            }
+          MONGODB_URI: ${{secrets.MONGODB_URI}}
 
-            git fetch origin main
-            git merge --ff-only "$DEPLOY_SHA"
-            test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
+          JWT_ACCESS_SECRET: ${{secrets.JWT_ACCESS_SECRET}}
+          JWT_REFRESH_SECRET: ${{secrets.JWT_REFRESH_SECRET}}
+          ACCESS_TOKEN_TTL_MINUTES: ${{secrets.ACCESS_TOKEN_TTL_MINUTES}}
+          REFRESH_TOKEN_TTL_DAYS: ${{secrets.REFRESH_TOKEN_TTL_DAYS}}
+          GOOGLE_CLIENT_ID: ${{secrets.GOOGLE_CLIENT_ID}}
+          STRIPE_SECRET_KEY: ${{secrets.STRIPE_SECRET_KEY}}
+          STRIPE_WEBHOOK_SECRET: ${{secrets.STRIPE_WEBHOOK_SECRET}}
+          CLOUDFLARE_ACCOUNT_ID: ${{secrets.CLOUDFLARE_ACCOUNT_ID}}
+          R2_ACCESS_KEY_ID: ${{secrets.R2_ACCESS_KEY_ID}}
+          R2_SECRET_ACCESS_KEY: ${{secrets.R2_SECRET_ACCESS_KEY}}
+          R2_BUCKET: ${{secrets.R2_BUCKET}}
+          R2_MEDIA_URL_TTL_SECONDS: ${{secrets.R2_MEDIA_URL_TTL_SECONDS}}
+          R2_DOWNLOAD_URL_TTL_SECONDS: ${{secrets.R2_DOWNLOAD_URL_TTL_SECONDS}}
+          LOCAL_UPLOAD_DIR: ${{secrets.LOCAL_UPLOAD_DIR}}
+          LOCAL_MEDIA_BASE_URL: ${{secrets.LOCAL_MEDIA_BASE_URL}}
+          MAX_IMAGE_SIZE_MB: ${{secrets.MAX_IMAGE_SIZE_MB}}
+          MAX_VIDEO_SIZE_MB: ${{secrets.MAX_VIDEO_SIZE_MB}}
+          MAX_THEME_ZIP_SIZE_MB: ${{secrets.MAX_THEME_ZIP_SIZE_MB}}
 
-            compose() {
-              docker compose \
-                --env-file client/.env.production \
-                -f docker-compose.production.yaml \
-                "$@"
-            }
+          ADMIN_EMAIL: ${{secrets.ADMIN_EMAIL}}
+          ADMIN_NAME: ${{secrets.ADMIN_NAME}}
+          ADMIN_PASSWORD: ${{secrets.ADMIN_PASSWORD}}
 
-            compose config --quiet
-            compose down --remove-orphans
-            compose build --pull
-            compose up -d --remove-orphans --wait --wait-timeout 180
-            docker image prune -f
-            compose ps
+          RESEND_API_KEY: ${{secrets.RESEND_API_KEY}}
+
+          EMAIL_FROM_ACCOUNT: ${{secrets.EMAIL_FROM_ACCOUNT}}
+          EMAIL_FROM_BILLING: ${{secrets.EMAIL_FROM_BILLING}}
+          EMAIL_FROM_MARKETING: ${{secrets.EMAIL_FROM_MARKETING}}
+          EMAIL_REPLY_TO: ${{secrets.EMAIL_REPLY_TO}}
+
+          PAYPAL_CLIENT_ID: ${{secrets.PAYPAL_CLIENT_ID}}
+          PAYPAL_CLIENT_SECRET: ${{secrets.PAYPAL_CLIENT_SECRET}}
+          PAYPAL_WEBHOOK_ID: ${{secrets.PAYPAL_WEBHOOK_ID}}
+          PAYPAL_ENVIRONMENT: ${{secrets.PAYPAL_ENVIRONMENT}}
+
+          PAYMOB_SECRET_KEY: ${{secrets.PAYMOB_SECRET_KEY}}
+          PAYMOB_PUBLIC_KEY: ${{secrets.PAYMOB_PUBLIC_KEY}}
+          PAYMOB_INTEGRATION_ID: ${{secrets.PAYMOB_INTEGRATION_ID}}
+          PAYMOB_INTEGRATION_IDS: ${{secrets.PAYMOB_INTEGRATION_IDS}}
+          PAYMOB_HMAC_SECRET: ${{secrets.PAYMOB_HMAC_SECRET}}
+          PAYMOB_BASE_URL: ${{secrets.PAYMOB_BASE_URL}}
+          PAYMOB_CURRENCY: ${{secrets.PAYMOB_CURRENCY}}
+
+          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+
+        run: |
+          cd /home/foliokit/foliokit-store
+
+          chmod +x deploy.sh
+
+          ./deploy.sh

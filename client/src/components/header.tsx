@@ -189,8 +189,9 @@ export default Header;
 
 
 export function Logo() {
-  return (<Link className="brand" to="/">FOLIO <span>KIT</span></Link>)
+  return (<Link className="text-white font-black font-sans text-xl leading-3 transition-all duration-200 ease-in-out hover:opacity-75" to="/">FOLIO <span className="text-brand">KIT</span></Link>)
 }
+
 export function Skeleton() {
   return (<div className="flex flex-row-reverse items-center gap-2 animate-pulse" >
     <div className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-600"></div>
