@@ -1,5 +1,7 @@
 import Home from './routes/home'
+import Footer from './components/footer'
 import Protected from './components/protected'
+import NotFoundPage from './routes/error/not-found'
 
 import { Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/auth-context'
@@ -10,8 +12,7 @@ import { lazy, Suspense } from 'react'
 import { ToastProvider } from './context/toast-context'
 import { CartProvider } from './context/cart-context'
 import { Spinner } from './components/ui/spinner'
-import Footer from './components/footer'
-import NotFoundPage from './routes/error/not-found'
+
 
 const InsightsPage = lazy(() => import('./routes/admin/insights'))
 const UsersPage = lazy(() => import('./routes/admin/users'))

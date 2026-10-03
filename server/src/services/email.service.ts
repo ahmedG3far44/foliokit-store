@@ -190,9 +190,9 @@ export function renderEmailTemplate(type: EmailTemplateType, variables: EmailTem
       ? ` (1 ${currency} = ${variables.paymentExchangeRate.toLocaleString("en-US", { maximumFractionDigits: 4 })} ${paymentCurrency})`
       : "";
     const convertedPaymentHtml = convertedPayment
-      ? `<tr><td style="padding:0 14px 14px;color:#69716d;font-size:12px">CHARGED BY PAYMOB${escapeHtml(exchangeRate)}</td><td style="padding:0 14px 14px;text-align:right;font-weight:700">${escapeHtml(convertedPayment)}</td></tr>`
+      ? `<tr><td style="padding:0 14px 14px;color:#69716d;font-size:12px">PAYMENT CONVERTED${escapeHtml(exchangeRate)}</td><td style="padding:0 14px 14px;text-align:right;font-weight:700">${escapeHtml(convertedPayment)}</td></tr>`
       : "";
-    const convertedPaymentText = convertedPayment ? ` Paymob charged: ${convertedPayment}${exchangeRate}.` : "";
+    const convertedPaymentText = convertedPayment ? ` Payment converted: ${convertedPayment}${exchangeRate}.` : "";
     const orderMarkup = {
       "@context": "https://schema.org",
       "@type": "Order",

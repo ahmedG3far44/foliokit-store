@@ -2,7 +2,7 @@ import type { QueryFilter } from "mongoose";
 import OrderModel from "../models/order.ts";
 import TransactionModel, { type TransactionDocument } from "../models/transaction.ts";
 import UserModel, { type UserDocument } from "../models/user.ts";
-import type { TransactionStatus, UserProvider, UserRole, UserStatus } from "../../../shared/types.ts";
+import type { TransactionStatus, UserProvider, UserRole, UserStatus } from "../lib/types.ts";
 
 
 export type InsightPeriod = "day" | "week" | "month" | "six_months" | "year";

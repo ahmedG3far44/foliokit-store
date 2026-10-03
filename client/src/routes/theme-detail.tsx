@@ -18,7 +18,7 @@ import { Instructions } from "../components/instructions";
 import { ThemeGallery } from "../components/theme-gallery";
 import { ArrowLeft, ArrowUpRight, Check, Download, Eye, ShoppingBag } from "lucide-react";
 
-import type { ThemeType } from "@shared/types";
+import type { ThemeType } from "../lib/types";
 
 export default function ThemeDetailPage() {
   const cart = useCart();

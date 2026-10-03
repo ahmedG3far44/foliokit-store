@@ -3,7 +3,7 @@
 
 import Header from "../components/header";
 
-import type { OrderType } from "@shared/types";
+import type { OrderType } from "../lib/types";
 import { ArrowLeft, Download, ReceiptText } from "lucide-react";
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -90,7 +90,7 @@ export default function OrderDetailPage() {
                                 <dd>{money(request.data.totalMinor, request.data.currency)}</dd>
                             </div>
                             {request.data.paymentCurrency && request.data.paymentCurrency !== request.data.currency && request.data.paymentAmountMinor !== undefined && <div>
-                                <dt>Charged by {request.data.paymentProvider === "paymob" ? "Paymob" : "payment provider"}{request.data.paymentExchangeRate ? <small className="block">1 {request.data.currency} = {request.data.paymentExchangeRate.toLocaleString(undefined, { maximumFractionDigits: 4 })} {request.data.paymentCurrency}</small> : null}</dt>
+                                <dt>Charged by payment provider{request.data.paymentExchangeRate ? <small className="block">1 {request.data.currency} = {request.data.paymentExchangeRate.toLocaleString(undefined, { maximumFractionDigits: 4 })} {request.data.paymentCurrency}</small> : null}</dt>
                                 <dd>{money(request.data.paymentAmountMinor, request.data.paymentCurrency)}</dd>
                             </div>}
                         </dl>

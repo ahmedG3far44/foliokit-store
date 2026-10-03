@@ -39,7 +39,7 @@ export function AccountButton() {
         onError={() => setFailedAvatarUrl(avatarUrl ?? null)}
       /> : <span aria-hidden="true">{initials}</span>}
     </button>
-    {open && <div className="account-popover">
+    <div className={`account-popover ${open ? "is-open" : ""}`} aria-hidden={!open}>
       <div className="account-identity">
         <UserRound size={17} />
         <span><strong>{user?.name}</strong><small>{user?.email}</small></span>
@@ -52,6 +52,6 @@ export function AccountButton() {
         <LogOut size={16} />
         <span>Sign out</span>
       </button>
-    </div>}
+    </div>
   </div>;
 }

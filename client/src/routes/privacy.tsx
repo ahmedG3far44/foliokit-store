@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import type { SiteContentType } from "@shared/types";
+import type { SiteContentType } from "../lib/types";
 import Header from "../components/header";
 import { Instructions } from "../components/instructions";
 import { useAsync } from "../hooks/use-async";

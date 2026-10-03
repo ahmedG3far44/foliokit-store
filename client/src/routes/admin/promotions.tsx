@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { IUser, PaginatedResponse } from "@shared/types";
+import type { IUser, PaginatedResponse } from "../../lib/types";
 import { Check, Mail, Search, Send, TestTube2, Users, X } from "lucide-react";
 import { PageHeader } from "../../components/admin/page-header";
 import { ErrorMessage } from "../../components/ui/error-message";

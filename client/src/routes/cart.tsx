@@ -3,7 +3,7 @@
 
 import Header from "../components/header";
 
-import type { DiscountQuote, PaymentProvider, PaymentSettingsType } from "@shared/types";
+import type { DiscountQuote, PaymentProvider, PaymentSettingsType } from "../lib/types";
 import { ArrowLeft, ShoppingBag, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
@@ -45,9 +45,7 @@ export default function CartPage() {
     redirectLock.current = true;
     setRedirecting(true);
     try {
-      const endpoint = selectedProvider === "paypal"
-        ? "/checkout/paypal/sessions"
-        : selectedProvider === "paymob" ? "/checkout/paymob/sessions" : "/checkout/sessions";
+      const endpoint = selectedProvider === "paypal" ? "/checkout/paypal/sessions" : "/checkout/sessions";
       const result = await checkout.run(api.post(endpoint, { idempotencyKey: crypto.randomUUID(), ...(discount ? { discountCode: discount.code } : {}) }));
       const destination = new URL(result.checkoutUrl);
       if (destination.protocol !== "https:") throw new Error("The payment provider returned an invalid checkout URL");
@@ -110,7 +108,6 @@ export default function CartPage() {
                 paymentProvider={selectedProvider}
                 availablePaymentProviders={availableProviders}
                 paymentOptionsLoading={paymentOptions.isLoading}
-                paymobUsdToEgpRate={paymentOptions.data?.paymobUsdToEgpRate}
                 discount={discount}
                 onDiscountChange={setDiscount}
                 onPaymentProviderChange={setPaymentProvider}

@@ -38,15 +38,6 @@ router.post("/checkout/paypal/sessions", requireCustomer, rateLimit("paypal-chec
   }
 });
 
-router.post("/checkout/paymob/sessions", requireCustomer, rateLimit("paymob-checkout", 12, 60_000, true), async (req, res, next) => {
-  try {
-    const input = parseOrThrow(checkoutSchema, req.body);
-    const checkout = await createCheckout(req.currentUser!, input.idempotencyKey, req.region, "paymob", input.discountCode);
-    res.status(201).json({ success: true, data: checkout });
-  } catch (error) {
-    next(error);
-  }
-});
 
 router.post("/checkout/paypal/capture", requireCustomer, rateLimit("paypal-capture", 12, 60_000, true), async (req, res, next) => {
   try {

@@ -43,9 +43,9 @@ router.get("/payment-settings", async (_req, res, next) => {
 });
 router.put("/payment-settings", async (req, res, next) => {
   try {
-    const { enabledProviders, paymobUsdToEgpRate } = parseOrThrow(paymentSettingsSchema, req.body);
+    const { enabledProviders } = parseOrThrow(paymentSettingsSchema, req.body);
     const before = await paymentSettings(true);
-    const updated = await updatePaymentSettings(enabledProviders, paymobUsdToEgpRate);
+    const updated = await updatePaymentSettings(enabledProviders);
     await audit(req, "payment_settings.update", "payment_settings", "default", before, updated);
     res.json({ success: true, data: updated, message: "Payment methods updated" });
   } catch (error) { next(error); }

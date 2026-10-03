@@ -8,7 +8,7 @@ export interface TransactionDocument {
   orderId?: Types.ObjectId;
   planId?: Types.ObjectId;
   product?: { name: string; description?: string };
-  provider: "stripe" | "paypal" | "paymob" | "manual";
+  provider: "stripe" | "paypal" | "manual";
   externalId?: string;
   amount: number;
   amountMinor?: number;
@@ -25,7 +25,7 @@ const transactionSchema = new Schema<TransactionDocument>({
   orderId: { type: Schema.Types.ObjectId, ref: "Order", index: true },
   planId: { type: Schema.Types.ObjectId, ref: "Plan" },
   product: { name: String, description: String },
-  provider: { type: String, enum: ["stripe", "paypal", "paymob", "manual"], required: true, index: true },
+  provider: { type: String, enum: ["stripe", "paypal", "manual"], required: true, index: true },
   externalId: { type: String, unique: true, sparse: true },
   amount: { type: Number, required: true, min: 0 },
   amountMinor: { type: Number, min: 0, validate: Number.isInteger },

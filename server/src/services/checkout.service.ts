@@ -5,14 +5,14 @@ import OrderModel, { type OrderItemDocument } from "../models/order.ts";
 import ThemeModel from "../models/theme.ts";
 import TransactionModel from "../models/transaction.ts";
 import UploadAssetModel from "../models/upload-asset.ts";
+
 import { AppError } from "../utils/app-error.ts";
 import { getCart } from "./cart.service.ts";
 import { failOrderPayment, fulfillPaidOrder } from "./fulfillment.service.ts";
 import { sendInvoiceEmail } from "./payment-notification.service.ts";
 import { captureMarketplacePaypalCheckout, createMarketplacePaypalCheckout } from "./paypal.service.ts";
-import { convertUsdPaymobItemsToEgp, createMarketplacePaymobCheckout } from "./paymob.service.ts";
 import { createMarketplaceStripeCheckout, validateStripeCheckoutAmounts } from "./stripe.service.ts";
-import { allocateDiscount, assertPaymentProviderEnabled, claimDiscount, type PaymentProvider, normalizeDiscountCode, paymobChargeConfiguration, releaseDiscountClaim } from "./discount.service.ts";
+import { allocateDiscount, assertPaymentProviderEnabled, claimDiscount, type PaymentProvider, normalizeDiscountCode, releaseDiscountClaim } from "./discount.service.ts";
 
 type CheckoutUser = { _id: unknown; email: string; name: string; phone?: string; role?: string };
 type CheckoutRegion = { country?: string; region?: string; city?: string; timezone?: string };
@@ -111,32 +111,7 @@ export async function createCheckout(user: CheckoutUser, idempotencyKey: string,
       return { orderId: String(order._id), checkoutUrl: paypal.url };
     }
 
-    if (provider === "paymob") {
-      const charge = await paymobChargeConfiguration(order.currency);
-      const sourceItems = order.items.map((item: OrderItemDocument) => ({ name: item.name, description: `Theme license · version ${item.version}`, unitAmountMinor: item.totalMinor }));
-      const paymobItems = charge.exchangeRate
-        ? convertUsdPaymobItemsToEgp(sourceItems, charge.exchangeRate)
-        : sourceItems;
-      const paymob = await createMarketplacePaymobCheckout({
-        items: paymobItems,
-        currency: charge.currency,
-        customer: { name: user.name, email: user.email, phone: user.phone },
-        orderId: String(order._id),
-        orderNumber: order.orderNumber,
-      });
-      order.paymobIntentionId = paymob.intentionId;
-      order.paymobOrderId = paymob.paymobOrderId;
-      order.checkoutUrl = paymob.checkoutUrl;
-      order.paymentAmountMinor = paymob.amountMinor;
-      order.paymentCurrency = paymob.currency;
-      order.paymentExchangeRate = charge.exchangeRate;
-      transaction.externalId = paymob.intentionId;
-      transaction.amountMinor = paymob.amountMinor;
-      transaction.amount = paymob.amountMinor / 100;
-      transaction.currency = paymob.currency;
-      await Promise.all([order.save(), transaction.save()]);
-      return { orderId: String(order._id), checkoutUrl: paymob.checkoutUrl };
-    }
+
 
     const session = await createMarketplaceStripeCheckout({
       items: order.items.map((item: OrderItemDocument) => ({ name: item.name, description: `Theme license · version ${item.version}`, unitAmountMinor: item.totalMinor })),
@@ -147,6 +122,7 @@ export async function createCheckout(user: CheckoutUser, idempotencyKey: string,
       metadata: { orderId: String(order._id), orderNumber: order.orderNumber, transactionId: String(transaction._id), userId: String(user._id) },
       idempotencyKey,
     });
+    
     if (!session.url) throw new Error("Stripe returned no checkout URL");
     const amounts = validateStripeCheckoutAmounts({ amount_subtotal: session.amountSubtotal, amount_total: session.amountTotal, currency: session.currency, total_details: session.totalDetails }, order.subtotalMinor - order.discountMinor, order.currency);
     order.taxMinor = amounts.taxMinor;

@@ -11,7 +11,7 @@ import { ErrorState } from "./error/error";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PreviewHeader, type PreviewDevice } from "../components/preview-header";
 
-import type { ThemeType } from "@shared/types";
+import type { ThemeType } from "../lib/types";
 
 const DEVICE_WIDTH: Record<PreviewDevice, string> = {
   mobile: "375px",

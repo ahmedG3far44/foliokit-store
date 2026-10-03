@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Download, Ellipsis, LayoutDashboard, MonitorPlay, PackageOpen, ReceiptText } from "lucide-react";
 
-import type { EntitlementType } from "@shared/types";
+import type { EntitlementType } from "../lib/types";
 interface OwnedThemeCardProps {
   entitlement: EntitlementType;
   downloading?: boolean;
@@ -43,16 +43,20 @@ export function OwnedThemeCard({ entitlement, downloading = false, onDownload }:
   const closeMenu = () => setMenuOpen(false);
 
   return <article className="purchase-card owned-theme-card">
-    <div className="purchase-icon"><PackageOpen size={24} /></div>
+
+    <div className="purchase-icon">
+      <PackageOpen size={24} />
+    </div>
+
     <div className="owned-theme-details">
       <span className={`status-pill ${entitlement.status === "active" ? "active" : "blocked"}`}>{entitlement.status}</span>
       <h2>{theme?.name ?? "Archived theme"}</h2>
       <p>Version {entitlement.purchasedVersion} · Purchased {dateTime(entitlement.purchasedAt)}</p>
     </div>
-    <div className="download-meter">
-      <div><span>Downloads used</span><strong>{entitlement.downloadsUsed} / {entitlement.downloadLimit}</strong></div>
-      <progress value={entitlement.downloadsUsed} max={entitlement.downloadLimit} />
-    </div>
+
+
+
+
     <button
       type="button"
       className="icon-button"
@@ -63,6 +67,17 @@ export function OwnedThemeCard({ entitlement, downloading = false, onDownload }:
     >
       {downloading ? <Spinner size="sm" /> : <Download size={16} strokeWidth={2} />}
     </button>
+
+    <div className="download-meter">
+      <div>
+        <span>Downloads used</span>
+        <strong>{entitlement.downloadsUsed} / {entitlement.downloadLimit}</strong>
+      </div>
+      <progress value={entitlement.downloadsUsed} max={entitlement.downloadLimit} />
+    </div>
+
+
+
     <div className="owned-theme-actions" ref={actionsRef}>
 
       <button
@@ -98,15 +113,15 @@ export function OwnedThemeCard({ entitlement, downloading = false, onDownload }:
         />
         {theme && (
           <>
-            <MenuAction title="View order" desc="Open receipt & payment details" icon={<ReceiptText size={16} strokeWidth={2} />} to={`/orders/${entitlement.orderId}`} menuOpen={menuOpen} closeMenu={closeMenu} />
+            <MenuAction title="View invoice details" desc="Open receipt & payment details" icon={<ReceiptText size={16} strokeWidth={2} />} to={`/orders/${entitlement.orderId}`} menuOpen={menuOpen} closeMenu={closeMenu} />
             <div className="border-t border-line my-1"></div>
-            <MenuAction title="View theme" desc="Open the theme details" icon={<LayoutDashboard size={16} strokeWidth={2} />} to={`/themes/${theme.slug}`} menuOpen={menuOpen} closeMenu={closeMenu} />
-            <MenuAction title="Preview demo" desc="Explore the live theme preview" icon={<MonitorPlay size={16} strokeWidth={2} />} to={`/themes/${theme.slug}/preview`} menuOpen={menuOpen} closeMenu={closeMenu} />
-
+            <MenuAction title="View theme details" desc="Open the theme details" icon={<LayoutDashboard size={16} strokeWidth={2} />} to={`/themes/${theme.slug}`} menuOpen={menuOpen} closeMenu={closeMenu} />
+            <MenuAction title="View live demo" desc="Explore the live theme preview" icon={<MonitorPlay size={16} strokeWidth={2} />} to={`/themes/${theme.slug}/preview`} menuOpen={menuOpen} closeMenu={closeMenu} />
           </>
         )}
       </div>
     </div>
+
   </article>;
 }
 

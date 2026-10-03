@@ -1,6 +1,6 @@
 /* useAsync.run is stable */
  /* oxlint-disable react-hooks/exhaustive-deps */
-import type { SiteContentType } from "@shared/types";
+import type { SiteContentType } from "../../lib/types";
 import { Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ErrorMessage } from "../../components/ui/error-message";

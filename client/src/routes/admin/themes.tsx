@@ -1,6 +1,6 @@
 /* useAsync.run is stable across renders. */
 /* oxlint-disable react-hooks/exhaustive-deps */
-import type { PaginatedResponse, ThemeType, ThemeStatus } from "@shared/types";
+import type { PaginatedResponse, ThemeType, ThemeStatus } from "../../lib/types";
 import { Edit3, Eye, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";

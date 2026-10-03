@@ -1,6 +1,6 @@
 /* useAsync.run is stable across renders. */
 /* oxlint-disable react-hooks/exhaustive-deps */
-import type { PublicAsset, ThemeType } from "@shared/types";
+import type { PublicAsset, ThemeType } from "../../lib/types";
 import { ArrowLeft, CheckCircle2, FileArchive, Film, ImagePlus, Save, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -96,9 +96,9 @@ async function uploadAsset(file: File, kind: UploadKind, update: (progress: numb
   }
 }
 
-function uniqueValues(value: string, separator: "," | "\n"): string[] {
+function uniqueValues(value: string | null | undefined, separator: "," | "\n"): string[] {
   const seen = new Set<string>();
-  return value.split(separator).map((item) => item.trim()).filter((item) => {
+  return (value ?? "").split(separator).map((item) => item.trim()).filter((item) => {
     const key = item.toLocaleLowerCase();
     if (!item || seen.has(key)) return false;
     seen.add(key);
@@ -108,8 +108,8 @@ function uniqueValues(value: string, separator: "," | "\n"): string[] {
 
 function validateTheme(fields: Fields, images: PublicAsset[], videos: PublicAsset[], source?: PublicAsset, preview?: PublicAsset): FormErrors {
   const errors: FormErrors = {};
-  const name = fields.name.trim();
-  const slug = fields.slug.trim();
+  const name = (fields.name ?? "").trim();
+  const slug = (fields.slug ?? "").trim();
   const price = Number(fields.price);
   const stack = uniqueValues(fields.stack, ",");
   const features = uniqueValues(fields.features, "\n");
@@ -119,15 +119,15 @@ function validateTheme(fields: Fields, images: PublicAsset[], videos: PublicAsse
   if (slug.length < 2) errors.slug = "Enter a slug with at least 2 characters";
   else if (slug.length > 100) errors.slug = "Slug cannot exceed 100 characters";
   else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) errors.slug = "Use lowercase letters, numbers, and single hyphens only";
-  if (fields.shortDescription.trim().length < 10) errors.shortDescription = "Enter at least 10 characters";
-  else if (fields.shortDescription.trim().length > 240) errors.shortDescription = "Short description cannot exceed 240 characters";
-  if (fields.description.trim().length < 20) errors.description = "Enter at least 20 characters";
-  else if (fields.description.length > 20_000) errors.description = "Description cannot exceed 20,000 characters";
+  if ((fields.shortDescription ?? "").trim().length < 10) errors.shortDescription = "Enter at least 10 characters";
+  else if ((fields.shortDescription ?? "").trim().length > 240) errors.shortDescription = "Short description cannot exceed 240 characters";
+  if ((fields.description ?? "").trim().length < 20) errors.description = "Enter at least 20 characters";
+  else if ((fields.description ?? "").length > 20_000) errors.description = "Description cannot exceed 20,000 characters";
   if (!Number.isFinite(price) || price < 0) errors.price = "Enter a valid price of 0 or more";
   else if (price > 1_000_000) errors.price = "Price cannot exceed 1,000,000";
-  if (!/^[A-Z]{3}$/.test(fields.currency.trim())) errors.currency = "Use a 3-letter currency code such as USD";
-  if (!fields.version.trim()) errors.version = "Enter the theme version";
-  else if (fields.version.trim().length > 30) errors.version = "Version cannot exceed 30 characters";
+  if (!/^[A-Z]{3}$/.test((fields.currency ?? "").trim())) errors.currency = "Use a 3-letter currency code such as USD";
+  if (!(fields.version ?? "").trim()) errors.version = "Enter the theme version";
+  else if ((fields.version ?? "").trim().length > 30) errors.version = "Version cannot exceed 30 characters";
   if (!stack.length) errors.stack = "Add at least one technology";
   else if (stack.length > 20) errors.stack = "Add no more than 20 technologies";
   else if (stack.some((value) => value.length > 40)) errors.stack = "Each technology must be 40 characters or fewer";
@@ -136,7 +136,7 @@ function validateTheme(fields: Fields, images: PublicAsset[], videos: PublicAsse
   else if (features.some((value) => value.length > 160)) errors.features = "Each feature must be 160 characters or fewer";
 
   try {
-    const preview = new URL(fields.previewUrl);
+    const preview = new URL((fields.previewUrl ?? "").trim());
     const host = preview.hostname.toLowerCase();
     const privateHost = host === "localhost" || host.startsWith("127.") || host === "0.0.0.0" || host.startsWith("10.") || host.startsWith("192.168.") || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
     if (preview.protocol !== "https:" || privateHost) errors.previewUrl = "Enter a public HTTPS preview URL";
@@ -144,11 +144,11 @@ function validateTheme(fields: Fields, images: PublicAsset[], videos: PublicAsse
     errors.previewUrl = "Enter a valid public HTTPS preview URL";
   }
 
-  if (fields.seoTitle.length > 70) errors.seoTitle = "SEO title cannot exceed 70 characters";
-  if (fields.seoDescription.length > 170) errors.seoDescription = "SEO description cannot exceed 170 characters";
-  if (fields.setupInstructions.length > 20_000) errors.setupInstructions = "Setup instructions cannot exceed 20,000 characters";
-  if (fields.deployInstructions.length > 20_000) errors.deployInstructions = "Deployment instructions cannot exceed 20,000 characters";
-  if (fields.changelog.length > 20_000) errors.changelog = "Changelog cannot exceed 20,000 characters";
+  if ((fields.seoTitle ?? "").length > 70) errors.seoTitle = "SEO title cannot exceed 70 characters";
+  if ((fields.seoDescription ?? "").length > 170) errors.seoDescription = "SEO description cannot exceed 170 characters";
+  if ((fields.setupInstructions ?? "").length > 20_000) errors.setupInstructions = "Setup instructions cannot exceed 20,000 characters";
+  if ((fields.deployInstructions ?? "").length > 20_000) errors.deployInstructions = "Deployment instructions cannot exceed 20,000 characters";
+  if ((fields.changelog ?? "").length > 20_000) errors.changelog = "Changelog cannot exceed 20,000 characters";
   if (!preview || preview.status !== "ready") errors.previewAssets = "Upload one MP4, WebM, or GIF preview";
   if (images.length < 2 || images.length > 10 || images.some((asset) => asset.status !== "ready")) errors.galleryAssets = "Upload 2–10 theme images";
   if (videos.length < 1 || videos.length > 2 || videos.some((asset) => asset.status !== "ready")) errors.tutorialAssets = "Upload 1–2 tutorial videos";
@@ -247,13 +247,13 @@ export default function AdminThemeEditorPage() {
     if (firstError) { requestAnimationFrame(() => document.querySelector<HTMLElement>(`[aria-describedby~="${firstError}-error"]`)?.focus()); return; }
 
     const body = {
-      name: fields.name.trim(), slug: fields.slug.trim(), shortDescription: fields.shortDescription.trim(), description: fields.description.trim(),
+      name: (fields.name ?? "").trim(), slug: (fields.slug ?? "").trim(), shortDescription: (fields.shortDescription ?? "").trim(), description: (fields.description ?? "").trim(),
       stack: uniqueValues(fields.stack, ","), features: uniqueValues(fields.features, "\n"),
-      priceMinor: Math.round(Number(fields.price) * 100), currency: fields.currency.trim().toUpperCase(), version: fields.version.trim(),
-      previewUrl: fields.previewUrl.trim(), previewAssetId: preview!.id, imageAssetIds: images.map((asset) => asset.id),
+      priceMinor: Math.round(Number(fields.price ?? 0) * 100), currency: (fields.currency ?? "").trim().toUpperCase(), version: (fields.version ?? "").trim(),
+      previewUrl: (fields.previewUrl ?? "").trim(), previewAssetId: preview!.id, imageAssetIds: images.map((asset) => asset.id),
       videoAssetIds: videos.map((asset) => asset.id), sourceAssetId: source!.id, featured: fields.featured,
-      instructionsFormat: "html", changelog: fields.changelog, setupInstructions: fields.setupInstructions, deployInstructions: fields.deployInstructions,
-      seoTitle: fields.seoTitle.trim(), seoDescription: fields.seoDescription.trim(),
+      instructionsFormat: "html", changelog: fields.changelog ?? "", setupInstructions: fields.setupInstructions ?? "", deployInstructions: fields.deployInstructions ?? "",
+      seoTitle: (fields.seoTitle ?? "").trim(), seoDescription: (fields.seoDescription ?? "").trim(),
     };
     try {
       const theme = await save.run(id ? api.put<ThemeType>(`/admin/themes/${id}`, body) : api.post<ThemeType>("/admin/themes", body));

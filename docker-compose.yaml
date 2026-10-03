@@ -1,94 +1,37 @@
-name: foliokit-development
+version: '3.8'
 
 services:
-  mongodb:
+  mongo:
     image: mongo:7.0
-    container_name: foliokit-mongodb
+    container_name: foliokit-mongo-container
+    ports:
+      - "27017:27017"
     restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "mongosh",
-          "--quiet",
-          "--eval",
-          "db.adminCommand('ping').ok"
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  server:
+    volumes:
+      - foliokit-mongo-data:/data/db
+    networks:
+      - foliokit-network
+    
+  api:
     build:
-      context: .
-      dockerfile: server/Dockerfile
-
-    image: foliokit-server:development
-    container_name: foliokit-server
-    restart: unless-stopped
-
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: foliokit-api-container
     env_file:
       - ./server/.env.development
-
-    expose:
-      - "5000"
-
-    depends_on:
-      - mongodb:
-          condition: service_healthy
-
-    networks:
-      - backend
-
-  client:
-    build:
-      context: .
-      dockerfile: client/Dockerfile
-
-    image: foliokit-client:development
-    container_name: foliokit-client
-    restart: unless-stopped
-
-    env_file:
-      - ./client/.env.development
-
-    expose:
-      - "5173"
-
-    depends_on:
-      - server
-
-    networks:
-      - frontend
-
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: foliokit-nginx
-    restart: unless-stopped
-
     ports:
-      - "80:80"
-
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-
-    depends_on:
-      - client
-      - server
-
+      - "5000:5000"
+    restart: unless-stopped
     networks:
-      - frontend
-      - backend
-
+      - foliokit-network
+    depends_on:
+      - mongo
 
 volumes:
-  mongodb_development_data:
-
+  foliokit-mongo-data:
 
 networks:
-  frontend:
+  foliokit-network:
     driver: bridge
 
-  backend:
-    driver: bridge
+    

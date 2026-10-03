@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import type { UserProvider, UserRole, UserStatus } from "../../../shared/types.ts";
+import type { UserProvider, UserRole, UserStatus } from "../lib/types.ts";
 
 const { Schema, model, models } = mongoose;
 

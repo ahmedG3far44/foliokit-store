@@ -1,4 +1,4 @@
-import type { CartType, DiscountQuote, PaymentProvider } from "@shared/types";
+import type { CartType, DiscountQuote, PaymentProvider } from "../lib/types";
 import { Check, LockKeyhole, ShieldCheck, Tag, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useCart } from "../context/cart-store";
@@ -14,16 +14,15 @@ interface CartOrderSummaryProps {
   paymentProvider?: PaymentProvider;
   availablePaymentProviders: PaymentProvider[];
   paymentOptionsLoading: boolean;
-  paymobUsdToEgpRate?: number;
   discount: DiscountQuote | null;
   onDiscountChange: (discount: DiscountQuote | null) => void;
   onPaymentProviderChange: (provider: PaymentProvider) => void;
   onCheckout: () => void;
 }
 
-const paymentProviderLabels: Record<PaymentProvider, string> = { stripe: "Stripe", paypal: "PayPal", paymob: "Paymob" };
+const paymentProviderLabels: Record<PaymentProvider, string> = { stripe: "Stripe", paypal: "PayPal" };
 
-export function CartOrderSummary({ cart, checkoutBusy, paymentProvider, availablePaymentProviders, paymentOptionsLoading, paymobUsdToEgpRate, discount, onDiscountChange, onPaymentProviderChange, onCheckout }: CartOrderSummaryProps) {
+export function CartOrderSummary({ cart, checkoutBusy, paymentProvider, availablePaymentProviders, paymentOptionsLoading, discount, onDiscountChange, onPaymentProviderChange, onCheckout }: CartOrderSummaryProps) {
   const cartState = useCart();
   const discountAction = useAsync<DiscountQuote>();
   const [discountCode, setDiscountCode] = useState("");
@@ -142,16 +141,6 @@ export function CartOrderSummary({ cart, checkoutBusy, paymentProvider, availabl
           </label>
           }
 
-          {availablePaymentProviders.includes("paymob") && <label className={paymentProvider === "paymob" ? "selected" : ""}>
-            <input type="radio" name="payment-provider" value="paymob" checked={paymentProvider === "paymob"} onChange={() => onPaymentProviderChange("paymob")} />
-            <span className=""><PaymentProviderMark provider="paymob" /></span>
-            <span className="payment-provider-copy">
-              <span className="payment-provider-title"><strong>Paymob</strong></span>
-              <small>{paymobUsdToEgpRate && cart.currency === "USD" ? ` Pay in USD with local currency equivalent at checkout` : `Use the Paymob payment method available for ${cart.currency}`}</small>
-            </span>
-            <span className="payment-provider-radio" aria-hidden="true" />
-          </label>}
-
         </div>
       )}
     </fieldset>
@@ -161,6 +150,6 @@ export function CartOrderSummary({ cart, checkoutBusy, paymentProvider, availabl
       {checkoutBusy ? "Checkout Processing…" : paymentProvider ? `Continue with ${paymentProviderLabels[paymentProvider]}` : "Payment unavailable"}
     </button>
 
-    <p className="checkout-note">{paymentProvider === "stripe" ? "Stripe calculates final tax from your billing address. The checkout total may differ from this estimate." : paymentProvider === "paypal" ? "You’ll review and approve the final amount securely on PayPal." : paymentProvider === "paymob" ? "You’ll complete payment securely on Paymob, then return here for confirmation." : "An administrator must enable a configured payment provider before checkout."}</p>
+    <p className="checkout-note">{paymentProvider === "stripe" ? "Stripe calculates final tax from your billing address. The checkout total may differ from this estimate." : paymentProvider === "paypal" ? "You’ll review and approve the final amount securely on PayPal." : "An administrator must enable a configured payment provider before checkout."}</p>
   </aside>;
 }

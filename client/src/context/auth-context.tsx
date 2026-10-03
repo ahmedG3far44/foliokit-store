@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { IUser } from "@shared/types";
+import type { IUser } from "../lib/types";
 import { ApiError, api } from "../lib/api";
 import { AuthContext, type LoginInput, type RegisterInput } from "./auth-store";
 

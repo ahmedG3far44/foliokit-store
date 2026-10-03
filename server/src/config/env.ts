@@ -29,13 +29,6 @@ const env = {
   PAYPAL_WEBHOOK_ID: process.env.PAYPAL_WEBHOOK_ID ?? "",
   PAYPAL_ENVIRONMENT: process.env.PAYPAL_ENVIRONMENT === "live" ? "live" as const : "sandbox" as const,
 
-  PAYMOB_SECRET_KEY: process.env.PAYMOB_SECRET_KEY ?? "",
-  PAYMOB_PUBLIC_KEY: process.env.PAYMOB_PUBLIC_KEY ?? "",
-  PAYMOB_INTEGRATION_ID: process.env.PAYMOB_INTEGRATION_ID ?? "",
-  PAYMOB_INTEGRATION_IDS: process.env.PAYMOB_INTEGRATION_IDS ?? "",
-  PAYMOB_CURRENCY: (process.env.PAYMOB_CURRENCY ?? "EGP").trim().toUpperCase(),
-  PAYMOB_HMAC_SECRET: process.env.PAYMOB_HMAC_SECRET ?? "",
-  PAYMOB_BASE_URL: (process.env.PAYMOB_BASE_URL ?? "https://accept.paymob.com").replace(/\/$/, ""),
   PUBLIC_API_URL: (process.env.PUBLIC_API_URL ?? "http://localhost:5000").replace(/\/$/, ""),
 
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? "",
@@ -50,8 +43,6 @@ const env = {
   R2_BUCKET: process.env.R2_BUCKET ?? "",
   R2_MEDIA_URL_TTL_SECONDS: Math.min(604_800, Math.max(300, Number(process.env.R2_MEDIA_URL_TTL_SECONDS ?? 3600))),
   R2_DOWNLOAD_URL_TTL_SECONDS: Math.min(900, Math.max(60, Number(process.env.R2_DOWNLOAD_URL_TTL_SECONDS ?? 90))),
-  LOCAL_UPLOAD_DIR: process.env.LOCAL_UPLOAD_DIR ?? "local-uploads",
-  LOCAL_MEDIA_BASE_URL: (process.env.LOCAL_MEDIA_BASE_URL ?? `http://localhost:${Number(process.env.PORT ?? 5000)}`).replace(/\/$/, ""),
   MAX_IMAGE_SIZE_MB: Number(process.env.MAX_IMAGE_SIZE_MB ?? 10),
   MAX_VIDEO_SIZE_MB: Number(process.env.MAX_VIDEO_SIZE_MB ?? 250),
   MAX_THEME_ZIP_SIZE_MB: Number(process.env.MAX_THEME_ZIP_SIZE_MB ?? 100),

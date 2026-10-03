@@ -13,30 +13,63 @@ interface Props {
 }
 
 export function RichTextEditor({ id, label, value, onChange, error, disabled = false }: Props) {
+  const safeValue = value ?? "";
+
   const editor = useEditor({
-    extensions: [StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false } })],
-    content: value,
+    extensions: [StarterKit.configure({ heading: { levels: [1, 2, 3] } })],
+    content: safeValue,
     editable: !disabled,
-    onUpdate: ({ editor: current }) => onChange(current.isEmpty ? "" : current.getHTML()),
+    onUpdate: ({ editor: current }) => {
+      if (!current || current.isDestroyed) return;
+      onChange(current.isEmpty ? "" : current.getHTML());
+    },
     editorProps: { attributes: { class: "rich-content rich-text-input", role: "textbox", "aria-multiline": "true", "aria-labelledby": `${id}-label` } },
   });
-  const state = useEditorState({ editor, selector: ({ editor: current }) => current ? {
-    bold: current.isActive("bold"), italic: current.isActive("italic"), strike: current.isActive("strike"),
-    bullet: current.isActive("bulletList"), ordered: current.isActive("orderedList"), code: current.isActive("code"),
-    block: current.isActive("codeBlock"), quote: current.isActive("blockquote"),
-    heading: [1, 2, 3].find((level) => current.isActive("heading", { level })) ?? 0,
-    undo: current.can().undo(), redo: current.can().redo(),
-  } : null });
+
+  const state = useEditorState({
+    editor,
+    selector: ({ editor: current }) => {
+      if (!current || current.isDestroyed) return null;
+      return {
+        bold: current.isActive("bold"), italic: current.isActive("italic"), strike: current.isActive("strike"),
+        bullet: current.isActive("bulletList"), ordered: current.isActive("orderedList"), code: current.isActive("code"),
+        block: current.isActive("codeBlock"), quote: current.isActive("blockquote"),
+        heading: [1, 2, 3].find((level) => current.isActive("heading", { level })) ?? 0,
+        undo: current.can().undo(), redo: current.can().redo(),
+      };
+    },
+  });
 
   useEffect(() => {
-    if (editor && value !== editor.getHTML() && !(value === "" && editor.isEmpty)) editor.commands.setContent(value, { emitUpdate: false });
-  }, [editor, value]);
-  useEffect(() => { editor?.setEditable(!disabled); }, [editor, disabled]);
+    if (!editor || editor.isDestroyed) return;
+    const currentHtml = editor.getHTML();
+    if (safeValue !== currentHtml && !(safeValue === "" && editor.isEmpty)) {
+      editor.commands.setContent(safeValue, { emitUpdate: false });
+    }
+  }, [editor, safeValue]);
+
   useEffect(() => {
-    editor?.setOptions({ editorProps: { attributes: { class: "rich-content rich-text-input", role: "textbox", "aria-multiline": "true", "aria-labelledby": `${id}-label`, "aria-invalid": String(Boolean(error)), "aria-describedby": `${id}-hint${error ? ` ${id}-error` : ""}` } } });
+    if (!editor || editor.isDestroyed) return;
+    editor.setEditable(!disabled);
+  }, [editor, disabled]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.setOptions({
+      editorProps: {
+        attributes: {
+          class: "rich-content rich-text-input",
+          role: "textbox",
+          "aria-multiline": "true",
+          "aria-labelledby": `${id}-label`,
+          "aria-invalid": String(Boolean(error)),
+          "aria-describedby": `${id}-hint${error ? ` ${id}-error` : ""}`,
+        },
+      },
+    });
   }, [editor, error, id]);
 
-  const actions = editor && state ? [
+  const actions = editor && !editor.isDestroyed && state ? [
     { label: "Bold", icon: Bold, active: state.bold, run: () => editor.chain().focus().toggleBold().run() },
     { label: "Italic", icon: Italic, active: state.italic, run: () => editor.chain().focus().toggleItalic().run() },
     { label: "Strikethrough", icon: Strikethrough, active: state.strike, run: () => editor.chain().focus().toggleStrike().run() },
@@ -54,10 +87,11 @@ export function RichTextEditor({ id, label, value, onChange, error, disabled = f
     <span className="rich-text-label" id={`${id}-label`}>{label}</span>
     <div className={`rich-text-editor ${error ? "invalid" : ""}`}>
       <div className="rich-text-toolbar" role="group" aria-label={`${label} formatting`}>
-        <select aria-label={`${label} text style`} value={state?.heading ?? 0} disabled={disabled || !editor} onChange={(event) => {
+        <select aria-label={`${label} text style`} value={state?.heading ?? 0} disabled={disabled || !editor || editor.isDestroyed} onChange={(event) => {
+          if (!editor || editor.isDestroyed) return;
           const level = Number(event.target.value);
-          if (level === 0) editor?.chain().focus().setParagraph().run();
-          else editor?.chain().focus().setHeading({ level: level as 1 | 2 | 3 }).run();
+          if (level === 0) editor.chain().focus().setParagraph().run();
+          else editor.chain().focus().setHeading({ level: level as 1 | 2 | 3 }).run();
         }}><option value="0">Normal text</option><option value="1">Heading 1</option><option value="2">Heading 2</option><option value="3">Heading 3</option></select>
         {actions.map((action) => <button type="button" key={action.label} title={action.label} aria-label={action.label} aria-pressed={action.active} disabled={disabled || action.disabled} onMouseDown={(event) => event.preventDefault()} onClick={action.run}><action.icon size={16} /></button>)}
       </div>

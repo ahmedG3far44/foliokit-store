@@ -1,4 +1,4 @@
-import type { PaymentProvider } from "@shared/types";
+import type { PaymentProvider } from "../lib/types";
 import { paymentProviderMeta } from "./payment-provider";
 
 interface PaymentProviderMarkProps {

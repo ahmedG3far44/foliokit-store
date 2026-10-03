@@ -8,7 +8,7 @@ import { PageHeader } from "../../components/admin/page-header";
 import { ErrorMessage } from "../../components/ui/error-message";
 import { PaymentProviderMark } from "../../components/payment-provider-mark";
 
-import type { IUser, PaginatedResponse, PlanType, TransactionStatus, TransactionType } from "@shared/types";
+import type { IUser, PaginatedResponse, PlanType, TransactionStatus, TransactionType } from "../../lib/types";
 
 type PopulatedTransaction = Omit<TransactionType, "userId" | "planId"> & { userId: Pick<IUser, "name" | "email" | "avatarUrl">; planId?: Pick<PlanType, "name" | "slug"> };
 type TransactionPage = PaginatedResponse<PopulatedTransaction>;

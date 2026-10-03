@@ -1,6 +1,6 @@
 /* This effect intentionally starts the authenticated cart fetch. */
 /* oxlint-disable react/set-state-in-effect */
-import type { CartType } from "@shared/types";
+import type { CartType } from "../lib/types";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { useAppAuth } from "./auth-store";

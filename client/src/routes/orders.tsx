@@ -1,6 +1,6 @@
 /* useAsync.run is stable across renders. */
 /* oxlint-disable react-hooks/exhaustive-deps */
-import type { PurchaseOverviewType } from "@shared/types";
+import type { PurchaseOverviewType } from "../lib/types";
 import { useCallback, useEffect } from "react";
 import Header from "../components/header";
 import { OrderList } from "../components/order-list";

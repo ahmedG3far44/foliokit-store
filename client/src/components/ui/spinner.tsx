@@ -1,4 +1,4 @@
-import type { sizeType } from "@shared/types";
+import type { sizeType } from "../../lib/types";
 
 
 export function Spinner({ size }: { size: sizeType }) {

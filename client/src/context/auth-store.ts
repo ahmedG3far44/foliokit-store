@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { IUser } from "@shared/types";
+import type { IUser } from "../lib/types";
 
 export interface LoginInput { email: string; password: string }
 export interface RegisterInput extends LoginInput { name: string }

@@ -1,10 +1,11 @@
 import env from "../config/env.ts";
 import DiscountModel, { type DiscountDocument } from "../models/discount.ts";
 import PaymentSettingsModel from "../models/payment-settings.ts";
-import { AppError } from "../utils/app-error.ts";
-import { paymobIntegrationIdForCurrency, paymobSupportedCurrencies } from "./paymob.service.ts";
 
-export type PaymentProvider = "stripe" | "paypal" | "paymob";
+import { AppError } from "../utils/app-error.ts";
+
+
+export type PaymentProvider = "stripe" | "paypal";
 export type DiscountInput = {
   code: string;
   type: "percentage" | "fixed";
@@ -16,17 +17,7 @@ export type DiscountInput = {
   active: boolean;
 };
 
-const providerLabels: Record<PaymentProvider, string> = { stripe: "Stripe", paypal: "PayPal", paymob: "Paymob" };
-
-function validPaymobUsdToEgpRate(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0.01 && value <= 1000;
-}
-
-function paymobSupportsStoreCurrency(currency: string, usdToEgpRate?: number): boolean {
-  const normalized = currency.trim().toUpperCase();
-  if (normalized === "USD") return validPaymobUsdToEgpRate(usdToEgpRate) && Boolean(paymobIntegrationIdForCurrency("EGP"));
-  return Boolean(paymobIntegrationIdForCurrency(normalized));
-}
+const providerLabels: Record<PaymentProvider, string> = { stripe: "Stripe", paypal: "PayPal" };
 
 export function normalizeDiscountCode(value: string): string {
   return value.trim().toUpperCase();
@@ -35,7 +26,7 @@ export function normalizeDiscountCode(value: string): string {
 function providerConfigured(provider: PaymentProvider): boolean {
   if (provider === "stripe") return Boolean(env.STRIPE_SECRET_KEY);
   if (provider === "paypal") return Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET);
-  return Boolean(env.PAYMOB_SECRET_KEY && env.PAYMOB_PUBLIC_KEY && paymobSupportedCurrencies().length && env.PAYMOB_HMAC_SECRET);
+  return false;
 }
 
 function serializeDiscount(discount: DiscountDocument & { _id: unknown }) {
@@ -55,42 +46,33 @@ function serializeDiscount(discount: DiscountDocument & { _id: unknown }) {
   };
 }
 
-export async function paymentSettings(includeConfiguration = false, currency?: string) {
+export async function paymentSettings(includeConfiguration = false, _currency?: string) {
   const settings = await PaymentSettingsModel.findOneAndUpdate(
     { key: "default" },
     { $setOnInsert: { enabledProviders: ["stripe", "paypal"] } },
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
   ).lean();
   const enabled = new Set(settings?.enabledProviders ?? []);
-  const paymobUsdToEgpRate = validPaymobUsdToEgpRate(settings?.paymobUsdToEgpRate) ? settings.paymobUsdToEgpRate : undefined;
-  const providers = (["stripe", "paypal", "paymob"] as PaymentProvider[]).map((id) => {
+  const providers = (["stripe", "paypal"] as PaymentProvider[]).map((id) => {
     const configured = providerConfigured(id);
-    const currencySupported = id !== "paymob" || !currency || paymobSupportsStoreCurrency(currency, paymobUsdToEgpRate);
     return {
       id,
       label: providerLabels[id],
-      enabled: enabled.has(id) && configured && currencySupported,
-      ...(id === "paymob" ? { supportedCurrencies: paymobSupportedCurrencies() } : {}),
+      enabled: enabled.has(id) && configured,
       ...(includeConfiguration ? { configured, selected: enabled.has(id) && configured } : {}),
     };
   });
-  return { enabledPaymentProviders: providers.filter((provider) => provider.enabled).map((provider) => provider.id), providers, paymobUsdToEgpRate };
+  return { enabledPaymentProviders: providers.filter((provider) => provider.enabled).map((provider) => provider.id), providers };
 }
 
-export async function updatePaymentSettings(enabledProviders: PaymentProvider[], paymobUsdToEgpRate?: number) {
+export async function updatePaymentSettings(enabledProviders: PaymentProvider[]) {
   const unique = [...new Set(enabledProviders)];
   if (!unique.length) throw new AppError(422, "PAYMENT_PROVIDER_REQUIRED", "Enable at least one payment method");
   const unconfigured = unique.filter((provider) => !providerConfigured(provider));
   if (unconfigured.length) throw new AppError(409, "PAYMENT_PROVIDER_NOT_CONFIGURED", `${unconfigured.map((provider) => providerLabels[provider]).join(" and ")} must be configured before customers can use it`);
-  const current = await PaymentSettingsModel.findOne({ key: "default" }).lean();
-  const effectivePaymobRate = paymobUsdToEgpRate ?? current?.paymobUsdToEgpRate;
-  if (unique.includes("paymob")) {
-    if (!validPaymobUsdToEgpRate(effectivePaymobRate)) throw new AppError(422, "PAYMOB_EXCHANGE_RATE_REQUIRED", "Set the USD to EGP exchange rate before enabling Paymob");
-    if (!paymobIntegrationIdForCurrency("EGP")) throw new AppError(409, "PAYMOB_EGP_INTEGRATION_REQUIRED", "Paymob needs an EGP Integration ID before it can convert USD checkout totals to EGP");
-  }
   await PaymentSettingsModel.findOneAndUpdate(
     { key: "default" },
-    { $set: { enabledProviders: unique, ...(paymobUsdToEgpRate !== undefined ? { paymobUsdToEgpRate } : {}) } },
+    { $set: { enabledProviders: unique } },
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true, runValidators: true },
   );
   return paymentSettings(true);
@@ -99,22 +81,8 @@ export async function updatePaymentSettings(enabledProviders: PaymentProvider[],
 export async function assertPaymentProviderEnabled(provider: PaymentProvider, currency?: string): Promise<void> {
   const settings = await paymentSettings(false, currency);
   if (!settings.enabledPaymentProviders.includes(provider)) {
-    if (provider === "paymob" && currency && providerConfigured("paymob")) {
-      if (currency.toUpperCase() === "USD") throw new AppError(409, "PAYMOB_USD_CONVERSION_UNAVAILABLE", "Paymob needs an EGP Integration ID and a USD to EGP exchange rate. Ask an administrator to finish the Paymob payment settings");
-      throw new AppError(409, "PAYMOB_CURRENCY_UNSUPPORTED", `Paymob is not configured for ${currency.toUpperCase()}. Choose another payment method or add a matching Paymob Integration ID`);
-    }
     throw new AppError(409, "PAYMENT_PROVIDER_UNAVAILABLE", `${providerLabels[provider]} is not currently available. Choose another payment method`);
   }
-}
-
-export async function paymobChargeConfiguration(sourceCurrency: string): Promise<{ currency: string; exchangeRate?: number }> {
-  const currency = sourceCurrency.trim().toUpperCase();
-  if (currency !== "USD") return { currency };
-  const settings = await PaymentSettingsModel.findOne({ key: "default" }).lean();
-  const exchangeRate = settings?.paymobUsdToEgpRate;
-  if (!validPaymobUsdToEgpRate(exchangeRate)) throw new AppError(409, "PAYMOB_EXCHANGE_RATE_REQUIRED", "Paymob checkout is waiting for an administrator to set the USD to EGP exchange rate");
-  if (!paymobIntegrationIdForCurrency("EGP")) throw new AppError(409, "PAYMOB_EGP_INTEGRATION_REQUIRED", "Paymob needs an EGP Integration ID to accept converted USD checkout totals");
-  return { currency: "EGP", exchangeRate };
 }
 
 export async function listDiscounts() {

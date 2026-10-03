@@ -1,6 +1,6 @@
 import { Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import type { IUser, PaginatedResponse, UserProvider, UserRole, UserStatus } from "@shared/types";
+import type { IUser, PaginatedResponse, UserProvider, UserRole, UserStatus } from "../../lib/types";
 import { PageHeader } from "../../components/admin/page-header";
 import { ErrorMessage } from "../../components/ui/error-message";
 import { TableSkeleton } from "../../components/ui/skeleton";

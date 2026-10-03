@@ -1,6 +1,6 @@
 /* useAsync.run is stable across renders. */
 /* oxlint-disable react-hooks/exhaustive-deps */
-import type { DiscountType, PaymentProvider, PaymentSettingsType } from "@shared/types";
+import type { DiscountType, PaymentProvider, PaymentSettingsType } from "../../lib/types";
 import { BadgePercent, CreditCard, Plus, Save } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { PageHeader } from "../../components/admin/page-header";
@@ -39,7 +39,6 @@ export default function AdminDiscountsPage() {
   const discountAction = useAsync<DiscountType>();
 
   const [enabledProviders, setEnabledProviders] = useState<PaymentProvider[]>([]);
-  const [paymobUsdToEgpRate, setPaymobUsdToEgpRate] = useState("");
   const [form, setForm] = useState(emptyForm);
 
   const load = useCallback(async () => {
@@ -47,7 +46,6 @@ export default function AdminDiscountsPage() {
       discounts.run(api.get<DiscountType[]>("/admin/discounts")),
       settings.run(api.get<PaymentSettingsType>("/admin/payment-settings")).then((data) => {
         setEnabledProviders(data.providers.filter((provider) => provider.selected).map((provider) => provider.id));
-        setPaymobUsdToEgpRate(data.paymobUsdToEgpRate ? String(data.paymobUsdToEgpRate) : "");
       }),
     ]);
   }, [discounts.run, settings.run]);
@@ -60,13 +58,9 @@ export default function AdminDiscountsPage() {
 
   const savePaymentMethods = async () => {
     if (!enabledProviders.length) return;
-    const numericPaymobRate = Number(paymobUsdToEgpRate);
-    const paymobRateValid = Number.isFinite(numericPaymobRate) && numericPaymobRate >= 0.01 && numericPaymobRate <= 1000;
-    if (enabledProviders.includes("paymob") && !paymobRateValid) return;
     try {
       const data = await paymentAction.run(api.put<PaymentSettingsType>("/admin/payment-settings", {
         enabledProviders,
-        ...(paymobRateValid ? { paymobUsdToEgpRate: numericPaymobRate } : {}),
       }));
       settings.setData(data);
       notify("Customer payment methods updated", "success");
@@ -100,9 +94,6 @@ export default function AdminDiscountsPage() {
   };
 
   const error = discounts.error || settings.error || createAction.error || paymentAction.error || discountAction.error;
-  const numericPaymobRate = Number(paymobUsdToEgpRate);
-  const paymobRateValid = Number.isFinite(numericPaymobRate) && numericPaymobRate >= 0.01 && numericPaymobRate <= 1000;
-  const paymobRateRequired = enabledProviders.includes("paymob");
 
   return <main className="admin-page">
 
@@ -135,24 +126,14 @@ export default function AdminDiscountsPage() {
               </span>
               <span>
                 <strong>{provider.label}</strong>
-                <small>{provider.configured ? `${checked ? "Visible to customers" : "Hidden from customers"}${provider.id === "paymob" && provider.supportedCurrencies?.length ? ` · ${provider.supportedCurrencies.join(", ")}` : ""}` : provider.id === "paymob" ? "Add credentials and a currency-matched Integration ID" : "Add server credentials to enable"}
+                <small>{provider.configured ? `${checked ? "Visible to customers" : "Hidden from customers"}` : "Add server credentials to enable"}
                 </small>
               </span>
             </label>;
           })}
 
         </div>}
-        <div className={`paymob-rate-setting ${paymobRateRequired ? "required" : ""}`}>
-          <label htmlFor="paymob-usd-egp-rate">Paymob USD conversion</label>
-          <p>Set the EGP amount charged by Paymob for each USD in the storefront total.</p>
-          <div className="paymob-rate-control">
-            <span>1 USD =</span>
-            <input id="paymob-usd-egp-rate" type="number" min="0.01" max="1000" step="0.0001" inputMode="decimal" value={paymobUsdToEgpRate} onChange={(event) => setPaymobUsdToEgpRate(event.target.value)} placeholder="50.0000" disabled={paymentAction.isLoading} required={paymobRateRequired} />
-            <span>EGP</span>
-          </div>
-          {paymobRateRequired && !paymobRateValid && <small role="alert">Enter a valid exchange rate before saving Paymob.</small>}
-        </div>
-        <button className="primary-button payment-settings-save" type="button" disabled={!enabledProviders.length || settings.isLoading || paymentAction.isLoading || (paymobRateRequired && !paymobRateValid)} onClick={() => void savePaymentMethods()}>
+        <button className="primary-button payment-settings-save" type="button" disabled={!enabledProviders.length || settings.isLoading || paymentAction.isLoading} onClick={() => void savePaymentMethods()}>
           {paymentAction.isLoading ? <Spinner size="sm" /> : <Save size={16} />} Save payment methods
         </button>
       </section>

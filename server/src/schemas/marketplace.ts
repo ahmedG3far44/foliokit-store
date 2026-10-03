@@ -67,8 +67,7 @@ const discountCode = z.string().trim().min(2).max(32).regex(/^[A-Za-z0-9_-]+$/, 
 export const discountCodeSchema = z.object({ code: discountCode }).strict();
 export const checkoutSchema = z.object({ idempotencyKey: z.string().uuid(), discountCode: discountCode.optional() }).strict();
 export const paymentSettingsSchema = z.object({
-  enabledProviders: z.array(z.enum(["stripe", "paypal", "paymob"])).min(1).max(3),
-  paymobUsdToEgpRate: z.number().finite().min(0.01).max(1000).optional(),
+  enabledProviders: z.array(z.enum(["stripe", "paypal"])).min(1).max(2),
 }).strict();
 export const discountInputSchema = z.object({
   code: discountCode,

@@ -2,7 +2,7 @@ import { GoogleLogin } from "@react-oauth/google";
 import { LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { IUser } from "@shared/types";
+import type { IUser } from "../lib/types";
 import { useAuth } from "../context/auth-store";
 
 function destination(user: IUser): string {
@@ -68,9 +68,9 @@ function AuthPage({ mode }: { mode: "login" | "register" }) {
       </div>
       <div className="auth-divider"><span>OR</span></div>
       <form className="auth-form" onSubmit={(event) => void submit(event)}>
-        {mode === "register" && <label>Full name<input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} minLength={2} maxLength={100} required /></label>}
-        <label>Email<input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
-        <label>Password<input type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} minLength={mode === "register" ? 10 : 1} maxLength={128} required /></label>
+        {mode === "register" && <label>Full name<input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} minLength={2} maxLength={100} placeholder="e.g. Alex Morgan" required /></label>}
+        <label>Email<input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="alex@example.com" required /></label>
+        <label>Password<input type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} minLength={mode === "register" ? 10 : 1} maxLength={128} placeholder={mode === "register" ? "At least 10 characters" : "Enter your password"} required /></label>
         {mode === "register" && <small className="password-hint">Use 10+ characters with uppercase, lowercase, and a number.</small>}
         <button className="primary-button auth-submit" type="submit" disabled={isLoading}>
           {isLoading && <LoaderCircle className="auth-spinner" size={18} />}

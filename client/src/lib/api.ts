@@ -1,4 +1,4 @@
-import type { ApiResponse } from "@shared/types";
+import type { ApiResponse } from "../lib/types";
 import { z } from "zod";
 
 const API_URL = import.meta.env.VITE_BASE_URL || "/api";

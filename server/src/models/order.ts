@@ -16,15 +16,12 @@ export interface OrderDocument {
   orderNumber: string;
   userId: Types.ObjectId;
   status: "pending" | "paid" | "failed" | "refunded";
-  paymentProvider: "stripe" | "paypal" | "paymob";
+  paymentProvider: "stripe" | "paypal";
   stripeCheckoutSessionId?: string;
   stripePaymentIntentId?: string;
   stripeSubtotalMinor?: number;
   paypalToken?: string;
   paypalTransactionId?: string;
-  paymobIntentionId?: string;
-  paymobOrderId?: string;
-  paymobTransactionId?: string;
   checkoutKey: string;
   checkoutUrl?: string;
   currency: string;
@@ -66,15 +63,12 @@ const schema = new Schema<OrderDocument>({
   orderNumber: { type: String, required: true, unique: true },
   userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
   status: { type: String, enum: ["pending", "paid", "failed", "refunded"], default: "pending", index: true },
-  paymentProvider: { type: String, enum: ["stripe", "paypal", "paymob"], default: "stripe" },
+  paymentProvider: { type: String, enum: ["stripe", "paypal"], default: "stripe" },
   stripeCheckoutSessionId: { type: String, unique: true, sparse: true },
   stripePaymentIntentId: { type: String, unique: true, sparse: true },
   stripeSubtotalMinor: { type: Number, min: 0, validate: Number.isInteger },
   paypalToken: { type: String, unique: true, sparse: true },
   paypalTransactionId: { type: String, unique: true, sparse: true },
-  paymobIntentionId: { type: String, unique: true, sparse: true },
-  paymobOrderId: { type: String, unique: true, sparse: true },
-  paymobTransactionId: { type: String, unique: true, sparse: true },
   checkoutKey: { type: String, required: true, unique: true },
   checkoutUrl: { type: String, select: false },
   currency: { type: String, required: true, uppercase: true },

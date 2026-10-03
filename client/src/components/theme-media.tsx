@@ -1,4 +1,4 @@
-import type { PublicAsset } from "@shared/types";
+import type { PublicAsset } from "../lib/types";
 
 
 export function ThemeMedia({

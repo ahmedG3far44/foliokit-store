@@ -1,4 +1,4 @@
-import type { CatalogResponse } from "@shared/types";
+import type { CatalogResponse } from "../lib/types";
 import { ArrowRight, CheckCircle2, Code2, Rocket } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
@@ -10,6 +10,7 @@ import { useCart } from "../context/cart-store";
 import { useAsync } from "../hooks/use-async";
 import { api } from "../lib/api";
 import HeroSection from "../components/hero";
+import LogoMarquee from "@/components/logos-loop";
 
 export default function Home() {
   const pageRef = useRef<HTMLDivElement>(null);
@@ -50,16 +51,16 @@ export default function Home() {
 
   return <div ref={pageRef} className="marketing-page">
     <HeroSection />
+    <LogoMarquee />
     <main>
-      <section className="buyer-assurance landing-reveal" data-reveal aria-label="Why choose Folio Kit">
+      {/* <section className="buyer-assurance landing-reveal" data-reveal aria-label="Why choose Folio Kit">
         <p>Made for creative people who want to launch—not wrestle with a blank canvas.</p>
         <div>
           <span><strong>One-time ownership</strong><small>Buy once. No subscription.</small></span>
           <span><strong>Ready to shape</strong><small>Clean source and clear guides.</small></span>
           <span><strong>Secure delivery</strong><small>Stripe checkout and protected files.</small></span>
         </div>
-      </section>
-
+      </section> */}
       <section className="featured-themes landing-reveal" data-reveal id="featured-themes">
         <div className="section-heading"><div><span className="eyebrow">Editor’s selection</span><h2>Start with a direction worth remembering.</h2><p>Distinct visual systems for different kinds of creative work—curated so you can choose with confidence.</p></div><Link to="/themes">Browse all themes <ArrowRight size={17} /></Link></div>
         {error && <ErrorMessage message={error} onDismiss={clearError} />}

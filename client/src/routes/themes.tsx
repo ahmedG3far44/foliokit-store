@@ -1,6 +1,6 @@
 /* useAsync.run is stable across renders. */
 /* oxlint-disable react-hooks/exhaustive-deps */
-import type { CatalogResponse } from "@shared/types";
+import type { CatalogResponse } from "../lib/types";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Header from "../components/header";

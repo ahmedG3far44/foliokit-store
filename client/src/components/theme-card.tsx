@@ -5,7 +5,7 @@ import { ThemeMedia } from "./theme-media";
 import { themePreview } from "../lib/theme-media";
 import { Eye, FileDown, LoaderCircle, ShoppingBag, ShoppingCart } from "lucide-react";
 
-import type { ThemeType } from "@shared/types";
+import type { ThemeType } from "../lib/types";
 
 interface ThemeCardProps {
   theme: ThemeType;

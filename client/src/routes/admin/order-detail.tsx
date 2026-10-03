@@ -1,6 +1,6 @@
 /* useAsync.run is stable across renders. */
 /* oxlint-disable react-hooks/exhaustive-deps */
-import type { IUser, OrderType } from "@shared/types";
+import type { IUser, OrderType } from "../../lib/types";
 import { ArrowLeft, ExternalLink, Mail, ReceiptText, User } from "lucide-react";
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -13,7 +13,7 @@ import { ErrorState } from "../error/error";
 
 interface AdminOrder extends OrderType { user: Pick<IUser, "name" | "email" | "provider"> }
 
-const paymentProviderLabels = { stripe: "Stripe", paypal: "PayPal", paymob: "Paymob" } as const;
+const paymentProviderLabels = { stripe: "Stripe", paypal: "PayPal" } as const;
 
 function discountDescription(order: OrderType): string {
   const discount = order.discountSnapshot;

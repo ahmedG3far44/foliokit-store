@@ -1,6 +1,6 @@
 /* useAsync.run is stable across renders. */
 /* oxlint-disable react-hooks/exhaustive-deps */
-import type { PurchaseOverviewType } from "@shared/types";
+import type { PurchaseOverviewType } from "../lib/types";
 import { CheckCircle2, Clock3, PackageOpen, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -26,7 +26,7 @@ export default function PurchasesPage() {
   const returnedOrderId = params.get("order_id") ?? sessionStorage.getItem("pendingOrderId");
   const paymentReturn = params.get("payment");
   const paypalToken = params.get("token");
-  const returningFromPayment = paymentReturn === "processing" || paymentReturn === "paypal" || paymentReturn === "paymob";
+  const returningFromPayment = paymentReturn === "processing" || paymentReturn === "paypal";
   const paypalCaptureStarted = useRef(false);
   const [confirmation, setConfirmation] = useState<"idle" | "processing" | "paid" | "failed" | "delayed">(returningFromPayment ? "processing" : "idle");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -119,18 +119,54 @@ export default function PurchasesPage() {
       </div>
 
       {confirmation !== "idle" && <div className={`payment-confirmation ${confirmation}`} role="status" aria-live="polite">
+
         {confirmation === "processing" ? <Spinner size="sm" /> : confirmation === "paid" ? <CheckCircle2 /> : confirmation === "failed" ? <XCircle /> : <Clock3 />}
-        <div><strong>{confirmation === "paid" ? "Payment confirmed" : confirmation === "failed" ? "Payment was not completed" : confirmation === "delayed" ? "Confirmation is taking longer than expected" : "Confirming your payment"}</strong>
-          <span>{confirmation === "paid" ? "Your cart is empty and your download is now available." : confirmation === "failed" ? "Your order was not charged successfully." : "This page will update when the payment provider confirms the transaction."}</span></div>
+
+        <div>
+          <strong>{confirmation === "paid" ? "Payment confirmed" : confirmation === "failed" ? "Payment was not completed" : confirmation === "delayed" ? "Confirmation is taking longer than expected" : "Confirming your payment"}</strong>
+          <span>
+            {confirmation === "paid" ? "Your cart is empty and your download is now available." : confirmation === "failed" ? "Your order was not charged successfully." : "This page will update when the payment provider confirms the transaction."}
+          </span>
+        </div>
+
       </div>}
 
       {download.error && <ErrorMessage message={download.error} onDismiss={download.clearError} />}
-      {request.isLoading && !request.data ? <div className="purchase-loading" aria-label="Loading purchases">{[1, 2, 3].map((item) => <Skeleton className="purchase-card-skeleton" key={item} />)}</div> : <>
+
+      {request.isLoading && !request.data ? <div className="purchase-loading" aria-label="Loading purchases">
+
+        {[1, 2, 3].map((item) => <Skeleton className="purchase-card-skeleton" key={item} />)}
+
+      </div> : <>
+
         <section className="library-section" aria-labelledby="downloads-heading">
-          <div className="library-section-heading"><div><span className="eyebrow">Available now</span><h2 id="downloads-heading">Theme downloads</h2></div><span>{entitlements.length} {entitlements.length === 1 ? "theme" : "themes"}</span></div>
-        {entitlements.length ? <div className="purchase-grid">{entitlements.map((item) => <OwnedThemeCard key={item.id} entitlement={item} downloading={downloadingId === item.id} onDownload={(id) => void getFile(id)} />)}</div> : <div className="library-empty"><PackageOpen size={25} /><p>Paid theme downloads will appear here after the payment webhook is confirmed.</p></div>}
+
+          <div className="library-section-heading">
+            <div>
+              <span className="eyebrow">Available now</span>
+              <h2 id="downloads-heading">Theme downloads</h2>
+            </div>
+            <span>
+              {entitlements.length} {entitlements.length === 1 ? "theme" : "themes"}
+            </span>
+          </div>
+
+          {entitlements.length ? (
+            <div className="purchase-grid">
+              {entitlements.map((item) => (
+                <OwnedThemeCard key={item.id} entitlement={item} downloading={downloadingId === item.id} onDownload={(id) => void getFile(id)} />
+              ))}
+            </div>
+          ) : (
+            <div className="library-empty">
+              <PackageOpen size={25} />
+              <p>Paid theme downloads will appear here after the payment webhook is confirmed.</p>
+            </div>
+          )}
+
         </section>
 
-    </>}
-  </main></div>;
+      </>}
+    </main>
+  </div>;
 }

@@ -1,4 +1,4 @@
-import type { PublicAsset } from "@shared/types";
+import type { PublicAsset } from "../lib/types";
 import { ChevronLeft, ChevronRight, ImageOff, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type TouchEvent } from "react";
 

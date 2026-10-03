@@ -1,4 +1,4 @@
-import type { PaymentProvider } from "@shared/types";
+import type { PaymentProvider } from "../lib/types";
 
 interface PaymentProviderMeta {
   label: string;
@@ -19,11 +19,5 @@ export const paymentProviderMeta: Record<PaymentProvider, PaymentProviderMeta> =
     logoSrc: "/payments/paypal.svg",
     width: 30,
     height: 30,
-  },
-  paymob: {
-    label: "Paymob",
-    logoSrc: "/payments/paymob.png",
-    width: 36,
-    height: 36
   },
 };

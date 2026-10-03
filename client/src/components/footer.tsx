@@ -2,7 +2,7 @@ import { api } from "../lib/api";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-import type { SiteContentType } from "@shared/types";
+import type { SiteContentType } from "../lib/types";
 import { Logo } from "./header";
 import { PaymentProviderMark } from "./payment-provider-mark";
 
@@ -75,7 +75,7 @@ export default function Footer() {
           {/* Payments */}
           <div className="footer-payments">
             <h3>Payments</h3>
-            <p>Secure checkout with Stripe, PayPal, or Paymob. All transactions encrypted.</p>
+            <p>Secure checkout with Stripe or PayPal. All transactions encrypted.</p>
             <div className="payment-groups">
               <div className="payment-provider-block">
 
@@ -86,7 +86,6 @@ export default function Footer() {
                   <span className="pay-badge" title="Apple Pay" aria-label="Apple Pay"><img src="/providers/apple.svg" alt="" width={20} height={20} /></span>
                   <span className="pay-badge" title="Stripe" aria-label="Stripe"><PaymentProviderMark provider="stripe" /></span>
                   <span className="pay-badge" title="PayPal" aria-label="PayPal"><PaymentProviderMark provider="paypal" /></span>
-                  <span className="pay-badge" title="Paymob" aria-label="Paymob"><PaymentProviderMark provider="paymob" /></span>
 
                 </div>
               </div>

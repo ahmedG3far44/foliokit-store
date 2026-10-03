@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, LoaderCircle, Monitor, ShoppingBag, Smartphone, Tablet } from "lucide-react";
-import type { ThemeType } from "@shared/types";
+import type { ThemeType } from "../lib/types";
 import { useCart } from "../context/cart-store";
 import { useAppAuth } from "../context/auth-store";
 import { money } from "../lib/format";

@@ -1094,6 +1094,18 @@ a {
   color: #8f9995;
 }
 
+.sidebar-user .account-popover {
+  bottom: calc(100% + 9px);
+  top: auto;
+  left: 0;
+  right: auto;
+  transform: translateY(6px) scale(0.96);
+  transform-origin: bottom left;
+}
+.sidebar-user .account-popover.is-open {
+  transform: translateY(0) scale(1);
+}
+
 .admin-main {
   padding-left: 252px;
   min-height: 100vh;
@@ -2448,7 +2460,6 @@ tbody tr:hover {
   width: min(1240px, 100%);
   margin: auto;
   padding: 45px 30px 110px;
-  margin-top: 40px;
 }
 
 /* .featured-themes {
@@ -3681,7 +3692,7 @@ tbody tr:hover {
 .purchase-card {
   padding: 22px;
   display: grid;
-  grid-template-columns: 52px 1fr 220px auto;
+  grid-template-columns: 52px 1fr 80px 220px auto;
   align-items: center;
   gap: 18px;
   border: 1px solid var(--line);
@@ -4208,31 +4219,116 @@ tbody tr:hover {
   font-weight: 750;
 }
 
-.social-auth-actions button:hover:not(:disabled) { background: var(--soft); }
-.social-auth-actions button:disabled { cursor: wait; opacity: 0.65; }
-.google-mark { width: 19px; text-align: center; font-size: 1rem; font-weight: 850; color: #4285f4; }
-.auth-spinner { animation: spin 0.7s linear infinite; }
-.auth-panel .auth-error { margin: 14px 0 0; color: var(--danger); font-size: 0.78rem; }
-.auth-panel > small { display: block; margin-top: 22px; color: var(--muted); line-height: 1.6; }
-.auth-panel > small a { color: var(--ink); text-decoration: underline; }
-.auth-form { display: grid; gap: 14px; }
-.auth-form label { display: grid; gap: 6px; color: var(--ink); font-size: 0.78rem; font-weight: 700; }
-.auth-form input { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); outline: none; }
-.auth-form input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent); }
-.auth-submit { width: 100%; min-height: 44px; justify-content: center; }
-.password-hint { margin-top: -7px; color: var(--muted); font-size: 0.72rem; line-height: 1.45; }
-.auth-divider { display: flex; align-items: center; gap: 12px; margin: 22px 0; color: var(--muted); font-size: 0.66rem; font-weight: 800; }
-.auth-divider::before, .auth-divider::after { content: ""; height: 1px; flex: 1; background: var(--line); }
-.auth-switch { margin: 18px 0 0 !important; color: var(--muted); font-size: 0.78rem; }
-.auth-switch a { color: var(--ink); font-weight: 700; text-decoration: underline; }
-.social-auth-actions > div { width: 100% !important; }
-.social-auth-actions iframe { width: 100% !important; }
-
-@media (max-width: 480px) {
-  .auth-panel { padding: 26px 22px; }
+.social-auth-actions button:hover:not(:disabled) {
+  background: var(--soft);
+}
+.social-auth-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.google-mark {
+  width: 19px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 850;
+  color: #4285f4;
+}
+.auth-spinner {
+  animation: spin 0.7s linear infinite;
+}
+.auth-panel .auth-error {
+  margin: 14px 0 0;
+  color: var(--danger);
+  font-size: 0.78rem;
+}
+.auth-panel > small {
+  display: block;
+  margin-top: 22px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.auth-panel > small a {
+  color: var(--ink);
+  text-decoration: underline;
+}
+.auth-form {
+  display: grid;
+  gap: 14px;
+}
+.auth-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.auth-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  outline: none;
+}
+.auth-form input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
+}
+.auth-submit {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+}
+.password-hint {
+  margin-top: -7px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}
+.auth-switch {
+  margin: 18px 0 0 !important;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.auth-switch a {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: underline;
+}
+.social-auth-actions > div {
+  width: 100% !important;
+}
+.social-auth-actions iframe {
+  width: 100% !important;
 }
 
-.account-menu { position: relative; }
+@media (max-width: 480px) {
+  .auth-panel {
+    padding: 26px 22px;
+  }
+}
+
+.account-menu {
+  position: relative;
+}
 .account-trigger {
   width: 36px;
   height: 36px;
@@ -4246,7 +4342,12 @@ tbody tr:hover {
   font-size: 0.7rem;
   font-weight: 800;
 }
-.account-trigger img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.account-trigger img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
 .account-popover {
   position: absolute;
   z-index: 80;
@@ -4259,14 +4360,63 @@ tbody tr:hover {
   background: #fff;
   color: var(--ink);
   box-shadow: 0 16px 45px rgba(20, 28, 24, 0.16);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.96);
+  transform-origin: top right;
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.account-identity { padding: 9px; display: flex; gap: 9px; align-items: center; border-bottom: 1px solid var(--line); }
-.account-identity > span { min-width: 0; display: grid; gap: 2px; }
-.account-identity strong, .account-identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.account-identity strong { font-size: 0.78rem; }
-.account-identity small { color: var(--muted); font-size: 0.68rem; }
-.account-popover > button { width: 100%; margin-top: 7px; padding: 9px; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 0.76rem; font-weight: 700; }
-.account-popover > button:hover { background: var(--soft); }
+.account-popover.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+.account-identity {
+  padding: 9px;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.account-identity > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.account-identity strong,
+.account-identity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-identity strong {
+  font-size: 0.78rem;
+}
+.account-identity small {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.account-popover > button {
+  width: 100%;
+  margin-top: 7px;
+  padding: 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+.account-popover > button:hover {
+  background: var(--soft);
+}
 
 .toast-viewport {
   position: fixed;
@@ -4907,7 +5057,7 @@ tbody tr:hover {
   .site-header {
     width: calc(100% - 36px);
     margin-top: 14px;
-    gap: 12px; 
+    gap: 12px;
   }
 
   .mobile-menu-trigger,
@@ -5465,7 +5615,7 @@ tbody tr:hover {
   display: grid;
   grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .payment-settings-panel,
@@ -6683,8 +6833,8 @@ tbody tr:hover {
   padding: 0;
   border: 1px solid var(--brand);
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.308);
-  color: var(--brand);
+  background: var(--brand);
+  color: var(--line);
 
   box-shadow: 0 3px 14px #18201d12;
 
@@ -6693,8 +6843,8 @@ tbody tr:hover {
     color 160ms ease;
 }
 .gallery-arrow:hover {
-  color: var(--line);
-  background: var(--brand);
+  color: var(--brand);
+  background: var(--line);
 }
 .gallery-arrow-prev {
   left: 18px;

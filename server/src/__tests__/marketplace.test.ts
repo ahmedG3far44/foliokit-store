@@ -11,7 +11,6 @@ import { assertInvoicePaid, createInvoicePdf, type InvoiceData } from "../servic
 import { createMarketingUnsubscribeToken, normalizeEmailSubject, renderEmailTemplate, verifyMarketingUnsubscribeToken } from "../services/email.service.ts";
 import { isSuccessfulFullRefund } from "../routes/webhook.route.ts";
 import { paypalDecimalToMinor, validatePaypalAmount } from "../services/paypal.service.ts";
-import { convertUsdMinorToEgp, convertUsdPaymobItemsToEgp, paymobHmacPayload, paymobIntegrationIdForCurrency, paymobSupportedCurrencies, validatePaymobTransaction, verifyPaymobHmac, type PaymobTransaction } from "../services/paymob.service.ts";
 import { allocateDiscount, calculateDiscountMinor } from "../services/discount.service.ts";
 import { serializeAsset } from "../services/upload.service.ts";
 import { analyticsWindow } from "../services/order.service.ts";
@@ -80,9 +79,7 @@ test("discount inputs enforce one safe value type, a future expiry, and payment-
   assert.equal(discountInputSchema.safeParse({ code: "SAVE15", type: "percentage", usageLimit: 20, expiresAt, active: true }).success, false);
   assert.equal(discountInputSchema.safeParse({ code: "SAVE10", type: "fixed", amountMinor: 1000, usageLimit: 20, expiresAt, active: true }).success, false);
   assert.equal(discountInputSchema.safeParse({ code: "EXPIRED", type: "percentage", percentageBps: 1500, usageLimit: 20, expiresAt: new Date(Date.now() - 1000), active: true }).success, false);
-  assert.deepEqual(paymentSettingsSchema.parse({ enabledProviders: ["stripe", "paypal", "paymob"] }), { enabledProviders: ["stripe", "paypal", "paymob"] });
-  assert.deepEqual(paymentSettingsSchema.parse({ enabledProviders: ["paymob"], paymobUsdToEgpRate: 50.75 }), { enabledProviders: ["paymob"], paymobUsdToEgpRate: 50.75 });
-  assert.equal(paymentSettingsSchema.safeParse({ enabledProviders: ["paymob"], paymobUsdToEgpRate: 0 }).success, false);
+  assert.deepEqual(paymentSettingsSchema.parse({ enabledProviders: ["stripe", "paypal"] }), { enabledProviders: ["stripe", "paypal"] });
   assert.equal(paymentSettingsSchema.safeParse({ enabledProviders: [] }).success, false);
 });
 
@@ -132,79 +129,7 @@ test("PayPal capture input and provider amounts are strictly validated", () => {
   assert.throws(() => validatePaypalAmount("49.99", "EUR", 4999, "USD"), /currency does not match/);
 });
 
-test("Paymob callbacks require the configured HMAC, integration, amount, and currency", () => {
-  const previousSecret = env.PAYMOB_HMAC_SECRET;
-  const previousIntegration = env.PAYMOB_INTEGRATION_ID;
-  const previousIntegrations = env.PAYMOB_INTEGRATION_IDS;
-  const previousCurrency = env.PAYMOB_CURRENCY;
-  env.PAYMOB_HMAC_SECRET = "paymob-test-hmac-secret";
-  env.PAYMOB_INTEGRATION_ID = "4097558";
-  env.PAYMOB_INTEGRATION_IDS = "";
-  env.PAYMOB_CURRENCY = "USD";
-  const transaction: PaymobTransaction = {
-    id: 192036465,
-    pending: false,
-    amount_cents: 4999,
-    success: true,
-    is_auth: false,
-    is_capture: false,
-    is_standalone_payment: true,
-    is_voided: false,
-    is_refunded: false,
-    is_3d_secure: true,
-    integration_id: 4097558,
-    has_parent_transaction: false,
-    order: { id: 217503754 },
-    created_at: "2026-09-26T09:30:00Z",
-    currency: "USD",
-    error_occured: false,
-    owner: 302852,
-    source_data: { pan: "2346", sub_type: "MasterCard", type: "card" },
-  };
-  try {
-    const hmac = createHmac("sha512", env.PAYMOB_HMAC_SECRET).update(paymobHmacPayload(transaction)).digest("hex");
-    assert.equal(verifyPaymobHmac(transaction, hmac), true);
-    assert.equal(verifyPaymobHmac({ ...transaction, amount_cents: 5000 }, hmac), false);
-    assert.doesNotThrow(() => validatePaymobTransaction(transaction, 4999, "usd"));
-    assert.throws(() => validatePaymobTransaction(transaction, 4900, "USD"), /amount does not match/);
-    assert.throws(() => validatePaymobTransaction({ ...transaction, integration_id: 1 }, 4999, "USD"), /integration does not match/);
-  } finally {
-    env.PAYMOB_HMAC_SECRET = previousSecret;
-    env.PAYMOB_INTEGRATION_ID = previousIntegration;
-    env.PAYMOB_INTEGRATION_IDS = previousIntegrations;
-    env.PAYMOB_CURRENCY = previousCurrency;
-  }
-});
 
-test("Paymob selects an Integration ID by cart currency", () => {
-  const previousIntegration = env.PAYMOB_INTEGRATION_ID;
-  const previousIntegrations = env.PAYMOB_INTEGRATION_IDS;
-  const previousCurrency = env.PAYMOB_CURRENCY;
-  try {
-    env.PAYMOB_INTEGRATION_ID = "111";
-    env.PAYMOB_CURRENCY = "EGP";
-    env.PAYMOB_INTEGRATION_IDS = "EGP:222, USD:333, invalid";
-    assert.equal(paymobIntegrationIdForCurrency("egp"), "222");
-    assert.equal(paymobIntegrationIdForCurrency("USD"), "333");
-    assert.equal(paymobIntegrationIdForCurrency("EUR"), undefined);
-    assert.deepEqual(paymobSupportedCurrencies(), ["EGP", "USD"]);
-  } finally {
-    env.PAYMOB_INTEGRATION_ID = previousIntegration;
-    env.PAYMOB_INTEGRATION_IDS = previousIntegrations;
-    env.PAYMOB_CURRENCY = previousCurrency;
-  }
-});
-
-test("Paymob converts USD totals and line items to exact EGP minor units", () => {
-  assert.equal(convertUsdMinorToEgp(4900, 50.75), 248675);
-  const items = convertUsdPaymobItemsToEgp([
-    { name: "Studio Grid", unitAmountMinor: 4410 },
-    { name: "Motion Folio", unitAmountMinor: 4410 },
-  ], 50.75);
-  assert.equal(items.reduce((sum, item) => sum + item.unitAmountMinor * (item.quantity ?? 1), 0), convertUsdMinorToEgp(8820, 50.75));
-  assert.ok(items.every((item) => item.quantity === 1 && Number.isInteger(item.unitAmountMinor) && item.unitAmountMinor > 0));
-  assert.throws(() => convertUsdMinorToEgp(4900, 0), /exchange rate is invalid/);
-});
 
 test("email templates render safe event-specific content", () => {
   for (const type of ["welcome", "invoice", "refund", "promotion"] as const) {
@@ -253,20 +178,6 @@ test("invoice emails describe fixed-amount discounts", () => {
   assert.match(rendered.text, /Discount SAVE10 \(\$10\.00 off\): -\$10\.00/);
 });
 
-test("invoice emails show the actual EGP amount charged by Paymob", () => {
-  const rendered = renderEmailTemplate("invoice", {
-    orderNumber: "ORD-PAYMOB",
-    amountMinor: 4900,
-    currency: "USD",
-    paymentAmountMinor: 248675,
-    paymentCurrency: "EGP",
-    paymentExchangeRate: 50.75,
-  });
-  assert.match(rendered.html, /CHARGED BY PAYMOB/);
-  assert.match(rendered.html, /EGP/);
-  assert.match(rendered.text, /Paymob charged:/);
-  assert.match(rendered.text, /1 USD = 50\.75 EGP/);
-});
 
 test("marketing unsubscribe tokens reject tampering", () => {
   const userId = "64b64c16e3a54f0012345671";

@@ -1,4 +1,4 @@
-import type { PurchaseOverviewType } from "@shared/types";
+import type { PurchaseOverviewType } from "../lib/types";
 import { ReceiptText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { dateTime, money } from "../lib/format";
