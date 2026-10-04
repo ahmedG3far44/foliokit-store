@@ -12,6 +12,7 @@ import { lazy, Suspense } from 'react'
 import { ToastProvider } from './context/toast-context'
 import { CartProvider } from './context/cart-context'
 import { Spinner } from './components/ui/spinner'
+import { GoogleAnalytics } from './components/google-analytics'
 
 
 const InsightsPage = lazy(() => import('./routes/admin/insights'))
@@ -52,6 +53,7 @@ function SiteFooter() {
 function App() {
   return (
     <BrowserRouter>
+      <GoogleAnalytics />
       <AuthProvider>
         <ToastProvider><CartProvider>
           <Suspense fallback={<div className="page-loader"><Spinner size="md" /></div>}><Routes>

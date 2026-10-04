@@ -1,593 +1,86 @@
-name: Deploy FOLIOKIT Server
+name: Deploy FOLIOKIT
 
 on:
   push:
     branches:
       - main
-
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foliokit-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy to Ubuntu VPS
-    runs-on: ubuntu-latest
+    name: Deploy on production runner
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 30
+    env:
+      APP_DIR: ${{ vars.APP_DIR || '/home/foliokit-store' }}
+      WEB_ROOT: ${{ vars.WEB_ROOT || '/var/www/foliokit' }}
+      PM2_APP: ${{ vars.PM2_APP || 'foliokit-server' }}
+      BRANCH: main
+      DEPLOY_COMMIT: ${{ github.sha }}
+
+      PORT: ${{ secrets.PORT }}
+      NODE_ENV: production
+      CLIENT_URL: ${{ secrets.CLIENT_URL }}
+      PUBLIC_API_URL: ${{ secrets.PUBLIC_API_URL }}
+      ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
+
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+
+      JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+      JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+      ACCESS_TOKEN_TTL_MINUTES: ${{ secrets.ACCESS_TOKEN_TTL_MINUTES }}
+      REFRESH_TOKEN_TTL_DAYS: ${{ secrets.REFRESH_TOKEN_TTL_DAYS }}
+
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_MEDIA_URL_TTL_SECONDS: ${{ secrets.R2_MEDIA_URL_TTL_SECONDS }}
+      R2_DOWNLOAD_URL_TTL_SECONDS: ${{ secrets.R2_DOWNLOAD_URL_TTL_SECONDS }}
+
+      MAX_IMAGE_SIZE_MB: ${{ secrets.MAX_IMAGE_SIZE_MB }}
+      MAX_VIDEO_SIZE_MB: ${{ secrets.MAX_VIDEO_SIZE_MB }}
+      MAX_THEME_ZIP_SIZE_MB: ${{ secrets.MAX_THEME_ZIP_SIZE_MB }}
+
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      ADMIN_NAME: ${{ secrets.ADMIN_NAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM_ACCOUNT: ${{ secrets.EMAIL_FROM_ACCOUNT }}
+      EMAIL_FROM_BILLING: ${{ secrets.EMAIL_FROM_BILLING }}
+      EMAIL_FROM_MARKETING: ${{ secrets.EMAIL_FROM_MARKETING }}
+      EMAIL_REPLY_TO: ${{ secrets.EMAIL_REPLY_TO }}
+
+      PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+      PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+      PAYPAL_WEBHOOK_ID: ${{ secrets.PAYPAL_WEBHOOK_ID }}
+      PAYPAL_ENVIRONMENT: ${{ secrets.PAYPAL_ENVIRONMENT }}
+
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      SENTRY_RELEASE: ${{ github.sha }}
+      SENTRY_TRACES_SAMPLE_RATE: ${{ vars.SENTRY_TRACES_SAMPLE_RATE || '0.1' }}
+
+      VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
+      VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+      VITE_GOOGLE_ANALYTICS_ID: ${{ vars.VITE_GOOGLE_ANALYTICS_ID || secrets.VITE_GOOGLE_ANALYTICS_ID }}
 
     steps:
-      # =========================================================
-      # DEPLOY TO VPS
-      # =========================================================
-      - name: Deploy FOLIOKIT to Ubuntu VPS
-        uses: appleboy/ssh-action@v1.2.5
-
-        # =======================================================
-        # ENVIRONMENT VARIABLES FROM GITHUB SECRETS
-        # =======================================================
-        env:
-          # -----------------------------------------------------
-          # Application
-          # -----------------------------------------------------
-          PORT: ${{ secrets.PORT }}
-          NODE_ENV: ${{ secrets.NODE_ENV }}
-          CLIENT_URL: ${{ secrets.CLIENT_URL }}
-          PUBLIC_API_URL: ${{ secrets.PUBLIC_API_URL }}
-          ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
-
-          # -----------------------------------------------------
-          # Database
-          # -----------------------------------------------------
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
-
-          # -----------------------------------------------------
-          # Authentication
-          # -----------------------------------------------------
-          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
-          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
-
-          ACCESS_TOKEN_TTL_MINUTES: ${{ secrets.ACCESS_TOKEN_TTL_MINUTES }}
-          REFRESH_TOKEN_TTL_DAYS: ${{ secrets.REFRESH_TOKEN_TTL_DAYS }}
-
-          # -----------------------------------------------------
-          # Google OAuth
-          # -----------------------------------------------------
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-
-          # -----------------------------------------------------
-          # Stripe
-          # -----------------------------------------------------
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-
-          # -----------------------------------------------------
-          # Cloudflare / R2
-          # -----------------------------------------------------
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-
-          R2_MEDIA_URL_TTL_SECONDS: ${{ secrets.R2_MEDIA_URL_TTL_SECONDS }}
-          R2_DOWNLOAD_URL_TTL_SECONDS: ${{ secrets.R2_DOWNLOAD_URL_TTL_SECONDS }}
-
-          # -----------------------------------------------------
-          # Upload Limits
-          # -----------------------------------------------------
-          MAX_IMAGE_SIZE_MB: ${{ secrets.MAX_IMAGE_SIZE_MB }}
-          MAX_VIDEO_SIZE_MB: ${{ secrets.MAX_VIDEO_SIZE_MB }}
-          MAX_THEME_ZIP_SIZE_MB: ${{ secrets.MAX_THEME_ZIP_SIZE_MB }}
-
-          # -----------------------------------------------------
-          # Admin
-          # -----------------------------------------------------
-          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
-          ADMIN_NAME: ${{ secrets.ADMIN_NAME }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-
-          # -----------------------------------------------------
-          # Resend / Email
-          # -----------------------------------------------------
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-
-          EMAIL_FROM_ACCOUNT: ${{ secrets.EMAIL_FROM_ACCOUNT }}
-          EMAIL_FROM_BILLING: ${{ secrets.EMAIL_FROM_BILLING }}
-          EMAIL_FROM_MARKETING: ${{ secrets.EMAIL_FROM_MARKETING }}
-          EMAIL_REPLY_TO: ${{ secrets.EMAIL_REPLY_TO }}
-
-          # -----------------------------------------------------
-          # PayPal
-          # -----------------------------------------------------
-          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
-          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
-          PAYPAL_WEBHOOK_ID: ${{ secrets.PAYPAL_WEBHOOK_ID }}
-          PAYPAL_ENVIRONMENT: ${{ secrets.PAYPAL_ENVIRONMENT }}
-
-        with:
-          # =====================================================
-          # VPS CONNECTION
-          # =====================================================
-
-          # Example: 123.45.67.89
-          host: ${{ secrets.VPS_HOST }}
-
-          # Example: foliokit
-          username: ${{ secrets.VPS_USERNAME }}
-
-          # Usually 22
-          port: ${{ secrets.VPS_PORT }}
-
-          # SSH private key used by GitHub Actions
-          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-
-          # Optional but useful
-          timeout: 30s
-          command_timeout: 20m
-
-          # =====================================================
-          # PASS THESE VARIABLES TO REMOTE SSH SESSION
-          # =====================================================
-          envs: >
-            PORT,
-            NODE_ENV,
-            CLIENT_URL,
-            PUBLIC_API_URL,
-            ACME_EMAIL,
-            MONGODB_URI,
-            JWT_ACCESS_SECRET,
-            JWT_REFRESH_SECRET,
-            ACCESS_TOKEN_TTL_MINUTES,
-            REFRESH_TOKEN_TTL_DAYS,
-            GOOGLE_CLIENT_ID,
-            STRIPE_SECRET_KEY,
-            STRIPE_WEBHOOK_SECRET,
-            CLOUDFLARE_ACCOUNT_ID,
-            R2_ACCESS_KEY_ID,
-            R2_SECRET_ACCESS_KEY,
-            R2_BUCKET,
-            R2_MEDIA_URL_TTL_SECONDS,
-            R2_DOWNLOAD_URL_TTL_SECONDS,
-            MAX_IMAGE_SIZE_MB,
-            MAX_VIDEO_SIZE_MB,
-            MAX_THEME_ZIP_SIZE_MB,
-            ADMIN_EMAIL,
-            ADMIN_NAME,
-            ADMIN_PASSWORD,
-            RESEND_API_KEY,
-            EMAIL_FROM_ACCOUNT,
-            EMAIL_FROM_BILLING,
-            EMAIL_FROM_MARKETING,
-            EMAIL_REPLY_TO,
-            PAYPAL_CLIENT_ID,
-            PAYPAL_CLIENT_SECRET,
-            PAYPAL_WEBHOOK_ID,
-            PAYPAL_ENVIRONMENT
-
-          # =====================================================
-          # REMOTE DEPLOYMENT SCRIPT
-          # Everything below runs INSIDE YOUR VPS
-          # =====================================================
-          script: |
-            #!/usr/bin/env bash
-
-            set -Eeuo pipefail
-
-            # ===================================================
-            # CONFIG
-            # ===================================================
-
-            APP_DIR="/home/foliokit-store/server"
-
-            ENV_FILE="$APP_DIR/.env"
-
-            BRANCH="main"
-
-            PM2_APP="foliokit-server"
-
-            # Change this if your compiled entry point is different.
-            PM2_ENTRY="dist/server/src/index.js"
-
-            # ===================================================
-            # ERROR HANDLING
-            # ===================================================
-
-            trap 'echo "❌ Deployment failed at line $LINENO"; exit 1' ERR
-
-            echo ""
-            echo "=============================================="
-            echo "🚀 FOLIOKIT PRODUCTION DEPLOYMENT"
-            echo "=============================================="
-            echo ""
-
-            echo "👤 VPS user:"
-            whoami
-
-            echo ""
-
-            echo "🖥️ VPS hostname:"
-            hostname
-
-            echo ""
-
-            # ===================================================
-            # 1. CHECK REQUIRED COMMANDS
-            # ===================================================
-
-            echo "🔎 Checking server requirements..."
-
-            command -v git >/dev/null 2>&1 || {
-              echo "❌ git is not installed"
-              exit 1
-            }
-
-            command -v node >/dev/null 2>&1 || {
-              echo "❌ Node.js is not installed"
-              exit 1
-            }
-
-            command -v npm >/dev/null 2>&1 || {
-              echo "❌ npm is not installed"
-              exit 1
-            }
-
-            command -v pm2 >/dev/null 2>&1 || {
-              echo "❌ PM2 is not installed"
-              exit 1
-            }
-
-            command -v nginx >/dev/null 2>&1 || {
-              echo "❌ Nginx is not installed"
-              exit 1
-            }
-
-            echo "✅ Required commands found."
-
-            # ===================================================
-            # 2. VERIFY PROJECT DIRECTORY
-            # ===================================================
-
-            echo ""
-            echo "📂 Checking project directory..."
-
-            if [ ! -d "$APP_DIR" ]; then
-              echo "❌ Project directory does not exist:"
-              echo "$APP_DIR"
-              exit 1
-            fi
-
-            cd "$APP_DIR"
-
-            echo "✅ Current directory:"
-            pwd
-
-            # ===================================================
-            # 3. VERIFY GIT REPOSITORY
-            # ===================================================
-
-            echo ""
-            echo "🔎 Checking Git repository..."
-
-            if [ ! -d ".git" ]; then
-              echo "❌ $APP_DIR is not a Git repository."
-              exit 1
-            fi
-
-            # ===================================================
-            # 4. UPDATE SOURCE CODE
-            # ===================================================
-
-            echo ""
-            echo "⬇️ Fetching latest changes..."
-
-            git fetch origin "$BRANCH"
-
-            echo "🔀 Switching to branch: $BRANCH"
-
-            git checkout "$BRANCH"
-
-            echo "♻️ Resetting to origin/$BRANCH..."
-
-            git reset --hard "origin/$BRANCH"
-
-            echo "✅ Source code updated."
-
-            echo ""
-            echo "📌 Current commit:"
-            git log -1 --oneline
-
-            # ===================================================
-            # 5. INSTALL DEPENDENCIES
-            # ===================================================
-
-            echo ""
-            echo "📦 Installing dependencies..."
-
-            if [ -f "package-lock.json" ]; then
-              npm ci
-            else
-              npm install
-            fi
-
-            echo "✅ Dependencies installed."
-
-            # ===================================================
-            # 6. VALIDATE IMPORTANT ENV VARIABLES
-            # ===================================================
-
-            echo ""
-            echo "🔐 Validating required environment variables..."
-
-            REQUIRED_ENV_VARS="
-            PORT
-            NODE_ENV
-            CLIENT_URL
-            PUBLIC_API_URL
-            MONGODB_URI
-            JWT_ACCESS_SECRET
-            JWT_REFRESH_SECRET
-            STRIPE_SECRET_KEY
-            CLOUDFLARE_ACCOUNT_ID
-            R2_ACCESS_KEY_ID
-            R2_SECRET_ACCESS_KEY
-            R2_BUCKET
-            RESEND_API_KEY
-            "
-
-            for VAR_NAME in $REQUIRED_ENV_VARS; do
-              if [ -z "${!VAR_NAME:-}" ]; then
-                echo "❌ Missing required environment variable: $VAR_NAME"
-                exit 1
-              fi
-            done
-
-            echo "✅ Required environment variables are available."
-
-            # ===================================================
-            # 7. CREATE .ENV FILE
-            # ===================================================
-
-            echo ""
-            echo "📝 Creating production .env..."
-
-            # Use a restrictive umask so newly created files
-            # aren't readable by other users.
-            umask 077
-
-            cat > "$ENV_FILE" <<EOF
-            # ==================================================
-            # FOLIOKIT PRODUCTION ENVIRONMENT
-            # Generated automatically by GitHub Actions
-            # ==================================================
-
-
-            # ==================================================
-            # Application
-            # ==================================================
-
-            PORT=${PORT}
-            NODE_ENV=${NODE_ENV}
-            CLIENT_URL=${CLIENT_URL}
-            PUBLIC_API_URL=${PUBLIC_API_URL}
-            ACME_EMAIL=${ACME_EMAIL}
-
-
-            # ==================================================
-            # Database
-            # ==================================================
-
-            MONGODB_URI=${MONGODB_URI}
-
-
-            # ==================================================
-            # Authentication
-            # ==================================================
-
-            JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
-            JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
-
-            ACCESS_TOKEN_TTL_MINUTES=${ACCESS_TOKEN_TTL_MINUTES}
-            REFRESH_TOKEN_TTL_DAYS=${REFRESH_TOKEN_TTL_DAYS}
-
-
-            # ==================================================
-            # Google OAuth
-            # ==================================================
-
-            GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-
-
-            # ==================================================
-            # Stripe
-            # ==================================================
-
-            STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-            STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-
-
-            # ==================================================
-            # Cloudflare / R2
-            # ==================================================
-
-            CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}
-
-            R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
-            R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
-
-            R2_BUCKET=${R2_BUCKET}
-
-            R2_MEDIA_URL_TTL_SECONDS=${R2_MEDIA_URL_TTL_SECONDS}
-            R2_DOWNLOAD_URL_TTL_SECONDS=${R2_DOWNLOAD_URL_TTL_SECONDS}
-
-
-            # ==================================================
-            # Upload Limits
-            # ==================================================
-
-            MAX_IMAGE_SIZE_MB=${MAX_IMAGE_SIZE_MB}
-            MAX_VIDEO_SIZE_MB=${MAX_VIDEO_SIZE_MB}
-            MAX_THEME_ZIP_SIZE_MB=${MAX_THEME_ZIP_SIZE_MB}
-
-
-            # ==================================================
-            # Admin
-            # ==================================================
-
-            ADMIN_EMAIL=${ADMIN_EMAIL}
-            ADMIN_NAME="${ADMIN_NAME}"
-            ADMIN_PASSWORD=${ADMIN_PASSWORD}
-
-
-            # ==================================================
-            # Resend / Email
-            # ==================================================
-
-            RESEND_API_KEY=${RESEND_API_KEY}
-
-            EMAIL_FROM_ACCOUNT="${EMAIL_FROM_ACCOUNT}"
-            EMAIL_FROM_BILLING="${EMAIL_FROM_BILLING}"
-            EMAIL_FROM_MARKETING="${EMAIL_FROM_MARKETING}"
-
-            EMAIL_REPLY_TO=${EMAIL_REPLY_TO}
-
-
-            # ==================================================
-            # PayPal
-            # ==================================================
-
-            PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID}
-            PAYPAL_CLIENT_SECRET=${PAYPAL_CLIENT_SECRET}
-            PAYPAL_WEBHOOK_ID=${PAYPAL_WEBHOOK_ID}
-            PAYPAL_ENVIRONMENT=${PAYPAL_ENVIRONMENT}
-            EOF
-
-            chmod 600 "$ENV_FILE"
-
-            echo "✅ .env created:"
-            ls -l "$ENV_FILE"
-
-            # IMPORTANT:
-            # Never `cat .env` here because that would expose secrets
-            # in GitHub Actions logs.
-
-            # ===================================================
-            # 8. BUILD APPLICATION
-            # ===================================================
-
-            echo ""
-            echo "🏗️ Building server..."
-
-            npm run build
-
-            echo "✅ Build completed."
-
-            # ===================================================
-            # 9. CHECK BUILD ENTRY
-            # ===================================================
-
-            echo ""
-            echo "🔎 Checking compiled server entry..."
-
-            if [ ! -f "$PM2_ENTRY" ]; then
-              echo "❌ PM2 entry file was not found:"
-              echo "$APP_DIR/$PM2_ENTRY"
-              echo ""
-              echo "Available dist files:"
-              find dist -maxdepth 4 -type f | head -50 || true
-              exit 1
-            fi
-
-            echo "✅ Found:"
-            echo "$PM2_ENTRY"
-
-            # ===================================================
-            # 10. REMOVE DEV DEPENDENCIES
-            # ===================================================
-
-            echo ""
-            echo "🧹 Pruning development dependencies..."
-
-            npm prune --omit=dev
-
-            echo "✅ Development dependencies removed."
-
-            # ===================================================
-            # 11. RESTART / START PM2
-            # ===================================================
-
-            echo ""
-            echo "♻️ Deploying PM2 application..."
-
-            if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
-
-              echo "PM2 app exists. Restarting..."
-
-              pm2 restart "$PM2_APP" --update-env
-
-            else
-
-              echo "PM2 app does not exist."
-              echo "Starting $PM2_APP..."
-
-              pm2 start "$PM2_ENTRY" \
-                --name "$PM2_APP"
-
-            fi
-
-            # Persist PM2 process list
-            pm2 save
-
-            echo "✅ PM2 application deployed."
-
-            # ===================================================
-            # 12. SHOW PM2 STATUS
-            # ===================================================
-
-            echo ""
-            echo "📊 PM2 status:"
-
-            pm2 status "$PM2_APP"
-
-            # ===================================================
-            # 13. TEST NGINX
-            # ===================================================
-
-            echo ""
-            echo "🔎 Testing Nginx configuration..."
-
-            sudo nginx -t
-
-            echo "✅ Nginx configuration is valid."
-
-            # ===================================================
-            # 14. RELOAD NGINX
-            # ===================================================
-
-            echo ""
-            echo "🔄 Reloading Nginx..."
-
-            sudo systemctl reload nginx
-
-            echo "✅ Nginx reloaded."
-
-            # ===================================================
-            # 15. FINAL STATUS
-            # ===================================================
-
-            echo ""
-            echo "=============================================="
-            echo "✅ FOLIOKIT DEPLOYMENT COMPLETED SUCCESSFULLY"
-            echo "=============================================="
-            echo ""
-
-            echo "Application:"
-            echo "$PM2_APP"
-
-            echo ""
-
-            echo "Commit:"
-            git log -1 --oneline
-
-            echo ""
-
-            echo "PM2:"
-            pm2 status "$PM2_APP"
-
-            echo ""
+      - name: Check out deployment script
+        uses: actions/checkout@v4
+
+      - name: Deploy client and server
+        shell: bash
+        run: bash ./deploy.sh

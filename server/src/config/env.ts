@@ -4,6 +4,8 @@ const nodeEnvironment = process.env.NODE_ENV ?? "development";
 dotenv.config({ path: `.env.${nodeEnvironment}` });
 dotenv.config();
 
+const configuredSentrySampleRate = Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? (nodeEnvironment === "production" ? 0.1 : 1));
+
 const env = {
   NODE_ENV: nodeEnvironment,
   PORT: Number(process.env.PORT ?? 5000),
@@ -46,6 +48,12 @@ const env = {
   MAX_IMAGE_SIZE_MB: Number(process.env.MAX_IMAGE_SIZE_MB ?? 10),
   MAX_VIDEO_SIZE_MB: Number(process.env.MAX_VIDEO_SIZE_MB ?? 250),
   MAX_THEME_ZIP_SIZE_MB: Number(process.env.MAX_THEME_ZIP_SIZE_MB ?? 100),
+
+  SENTRY_DSN: process.env.SENTRY_DSN?.trim() ?? "",
+  SENTRY_RELEASE: process.env.SENTRY_RELEASE?.trim() || undefined,
+  SENTRY_TRACES_SAMPLE_RATE: Number.isFinite(configuredSentrySampleRate)
+    ? Math.min(1, Math.max(0, configuredSentrySampleRate))
+    : nodeEnvironment === "production" ? 0.1 : 1,
 };
 
 function isPlaceholder(value: string): boolean {
@@ -67,6 +75,7 @@ if (env.NODE_ENV === "production") {
     R2_ACCESS_KEY_ID: env.R2_ACCESS_KEY_ID,
     R2_SECRET_ACCESS_KEY: env.R2_SECRET_ACCESS_KEY,
     R2_BUCKET: env.R2_BUCKET,
+    SENTRY_DSN: env.SENTRY_DSN,
   };
   for (const [name, value] of Object.entries(requiredValues)) {
     if (isPlaceholder(value)) issues.push(`${name} is missing or still contains a placeholder`);

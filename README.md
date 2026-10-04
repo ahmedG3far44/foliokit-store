@@ -72,13 +72,14 @@ For upgrades, back up MongoDB Atlas, deploy the new source, and run the producti
 
 ### Automatic production deployment from GitHub
 
-The workflow at `.github/workflows/deploy-production.yml` runs after every push to `main` and can also be started manually. It runs directly on the Linux self-hosted runner, checks out the exact pushed commit, builds and tests both images, validates live integrations, deploys the Compose stack, waits for container health checks, and verifies both public HTTPS endpoints. Concurrent pushes are serialized so two deployments cannot modify production at the same time. The preflight sends an idempotent message to Resend's non-human `delivered@resend.dev` test recipient to verify the API key and sender domain without emailing an administrator or customer.
+The workflow at `.github/workflows/main.yml` runs after every push to `main` and can also be started manually. It executes on the production Linux self-hosted runner and calls `deploy.sh`. The script updates the checkout in `APP_DIR`, writes restricted `client/.env.production` and `server/.env.production` files, installs dependencies, builds both apps, atomically replaces the client files served by Nginx, restarts the API with PM2, and reloads Nginx. Concurrent deployments are serialized.
 
 In the GitHub repository, open **Settings → Secrets and variables → Actions** and create these required repository secrets:
 
 - Core: `ACME_EMAIL`, `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`.
 - Google: `GOOGLE_CLIENT_ID`, `VITE_GOOGLE_CLIENT_ID` (the same web client ID).
-- Client: `VITE_BASE_URL` with the exact value `https://api.foliokit.store/api/v1`.
+- Client: `VITE_BASE_URL` with the exact value `https://api.foliokit.store/api/v1` and `VITE_GOOGLE_ANALYTICS_ID` with the GA4 web stream measurement ID (for example, `G-ABC123DEF4`). The Analytics ID can be a repository variable instead of a secret.
+- Monitoring: `SENTRY_DSN`. `SENTRY_RELEASE` is populated automatically from the deployed commit. Optionally set the `SENTRY_TRACES_SAMPLE_RATE` repository variable from `0` to `1`; it defaults to `0.1`.
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
 - Cloudflare R2: `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`.
 - Resend: `RESEND_API_KEY`, `EMAIL_FROM_ACCOUNT`, `EMAIL_FROM_BILLING`, `EMAIL_FROM_MARKETING`, `EMAIL_REPLY_TO`.
@@ -89,12 +90,14 @@ Optional secrets include the token TTLs, upload size/URL TTL settings, administr
 Prepare the VPS once before enabling the workflow:
 
 1. Give the self-hosted runner the default `self-hosted` and `linux` labels and keep its service running.
-2. Install Docker Engine, Docker Compose v2, Git, and `curl` on the VPS.
-3. Add the runner service account to the Docker group so `docker info` works without `sudo`, then restart the runner service after changing group membership.
-4. Keep TCP ports 80 and 443 open and ensure host Nginx/Apache is not already occupying them.
-5. Point both DNS records at the VPS before the first workflow run.
+2. Install Git, a current Node.js LTS release, npm, PM2, and Nginx on the VPS.
+3. Clone the repository to `/home/foliokit-store`, or set the `APP_DIR` repository variable to its absolute location. Optional `WEB_ROOT` and `PM2_APP` variables override `/var/www/foliokit` and `foliokit-server`.
+4. Give the runner account write access to the project and web directories, plus passwordless permission to run `sudo nginx -t` and `sudo systemctl reload nginx`.
+5. Keep TCP ports 80 and 443 open and point both DNS records at the VPS before the first workflow run.
 
-No SSH password or second server checkout is needed: the self-hosted runner is already executing on the deployment VPS, and GitHub supplies a clean checkout for each job.
+No SSH credentials are needed because deployment runs directly on the production VPS.
+
+The client sends one manual GA4 `page_view` for each React Router location. In the GA4 web stream's Enhanced Measurement settings, disable **Page changes based on browser history events** so Google does not also generate a second page view for the same navigation.
 
 ### Production URLs
 
