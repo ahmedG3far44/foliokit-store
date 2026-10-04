@@ -118,9 +118,6 @@ jobs:
           # SSH private key used by GitHub Actions
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
 
-          # Verify that GitHub is connecting to YOUR VPS
-          fingerprint: ${{ secrets.VPS_HOST_FINGERPRINT }}
-
           # Optional but useful
           timeout: 30s
           command_timeout: 20m
