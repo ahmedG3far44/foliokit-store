@@ -53,14 +53,14 @@ export default function Home() {
     <HeroSection />
     <LogoMarquee />
     <main>
-      {/* <section className="buyer-assurance landing-reveal" data-reveal aria-label="Why choose Folio Kit">
+      <section className="buyer-assurance landing-reveal" data-reveal aria-label="Why choose Folio Kit">
         <p>Made for creative people who want to launch—not wrestle with a blank canvas.</p>
         <div>
           <span><strong>One-time ownership</strong><small>Buy once. No subscription.</small></span>
           <span><strong>Ready to shape</strong><small>Clean source and clear guides.</small></span>
           <span><strong>Secure delivery</strong><small>Stripe checkout and protected files.</small></span>
         </div>
-      </section> */}
+      </section>
       <section className="featured-themes landing-reveal" data-reveal id="featured-themes">
         <div className="section-heading"><div><span className="eyebrow">Editor’s selection</span><h2>Start with a direction worth remembering.</h2><p>Distinct visual systems for different kinds of creative work—curated so you can choose with confidence.</p></div><Link to="/themes">Browse all themes <ArrowRight size={17} /></Link></div>
         {error && <ErrorMessage message={error} onDismiss={clearError} />}

@@ -2,173 +2,436 @@
 
 set -Eeuo pipefail
 
-APP_DIR="${APP_DIR:-/home/foliokit-store}"
-CLIENT_DIR="$APP_DIR/client"
-SERVER_DIR="$APP_DIR/server"
+# ============================================================
+# FOLIOKIT Production Deployment
+# ============================================================
+
+APP_DIR="${APP_DIR:-/home/foliokit/foliokit-store}"
+
+CLIENT_DIR="${CLIENT_DIR:-$APP_DIR/client}"
+SERVER_DIR="${SERVER_DIR:-$APP_DIR/server}"
+
 WEB_ROOT="${WEB_ROOT:-/var/www/foliokit}"
-WEB_DIST="$WEB_ROOT/dist"
-BRANCH="${BRANCH:-main}"
-DEPLOY_COMMIT="${DEPLOY_COMMIT:-origin/$BRANCH}"
+
+CLIENT_ENV="$CLIENT_DIR/.env"
+SERVER_ENV="$SERVER_DIR/.env"
+
 PM2_APP="${PM2_APP:-foliokit-server}"
-PM2_ENTRY="dist/server/src/index.js"
+BRANCH="${BRANCH:-main}"
 
-trap 'echo "Deployment failed at line $LINENO" >&2' ERR
 
-require_command() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    echo "Required command is not installed: $1" >&2
+# ============================================================
+# Error handler
+# ============================================================
+
+error_handler() {
+    local exit_code=$?
+    local line_number=$1
+
+    echo ""
+    echo "============================================================"
+    echo "❌ DEPLOYMENT FAILED"
+    echo "============================================================"
+    echo "Line: $line_number"
+    echo "Exit code: $exit_code"
+    echo "============================================================"
+
+    exit "$exit_code"
+}
+
+trap 'error_handler $LINENO' ERR
+
+
+# ============================================================
+# Header
+# ============================================================
+
+echo ""
+echo "============================================================"
+echo "🚀 FOLIOKIT PRODUCTION DEPLOYMENT"
+echo "============================================================"
+echo "App:        $APP_DIR"
+echo "Client:     $CLIENT_DIR"
+echo "Server:     $SERVER_DIR"
+echo "Web root:   $WEB_ROOT"
+echo "PM2 app:    $PM2_APP"
+echo "Branch:     $BRANCH"
+echo "Commit:     ${DEPLOY_COMMIT:-unknown}"
+echo "============================================================"
+echo ""
+
+
+# ============================================================
+# Validate directories
+# ============================================================
+
+echo "🔎 Checking project directories..."
+
+if [ ! -d "$APP_DIR" ]; then
+    echo "❌ App directory does not exist:"
+    echo "$APP_DIR"
     exit 1
-  fi
-}
-
-require_env() {
-  local name
-  for name in "$@"; do
-    if [[ -z "${!name:-}" ]]; then
-      echo "Required environment variable is missing: $name" >&2
-      exit 1
-    fi
-  done
-}
-
-write_env_value() {
-  local file="$1"
-  local name="$2"
-  local value="${!name-}"
-  local escaped="$value"
-
-  escaped="${escaped//\\/\\\\}"
-  escaped="${escaped//\"/\\\"}"
-  escaped="${escaped//$'\n'/\\n}"
-  escaped="${escaped//$'\r'/\\r}"
-  printf '%s="%s"\n' "$name" "$escaped" >> "$file"
-}
-
-write_env_if_set() {
-  local file="$1"
-  local name="$2"
-  if [[ -n "${!name:-}" ]]; then
-    write_env_value "$file" "$name"
-  fi
-}
-
-for command in git node npm pm2 nginx sudo systemctl; do
-  require_command "$command"
-done
-
-if [[ ! -d "$APP_DIR/.git" || ! -d "$CLIENT_DIR" || ! -d "$SERVER_DIR" ]]; then
-  echo "FOLIOKIT project was not found at $APP_DIR" >&2
-  exit 1
 fi
 
-APP_DIR="$(cd "$APP_DIR" && pwd -P)"
-CLIENT_DIR="$APP_DIR/client"
-SERVER_DIR="$APP_DIR/server"
-
-require_env \
-  PORT NODE_ENV CLIENT_URL PUBLIC_API_URL MONGODB_URI \
-  JWT_ACCESS_SECRET JWT_REFRESH_SECRET GOOGLE_CLIENT_ID \
-  STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET \
-  CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET \
-  RESEND_API_KEY EMAIL_FROM_ACCOUNT EMAIL_FROM_BILLING EMAIL_FROM_MARKETING EMAIL_REPLY_TO \
-  PAYPAL_CLIENT_ID PAYPAL_CLIENT_SECRET PAYPAL_WEBHOOK_ID PAYPAL_ENVIRONMENT \
-  SENTRY_DSN VITE_BASE_URL VITE_GOOGLE_CLIENT_ID VITE_GOOGLE_ANALYTICS_ID
-
-if [[ ! "$VITE_GOOGLE_ANALYTICS_ID" =~ ^G-[A-Za-z0-9]+$ ]]; then
-  echo "VITE_GOOGLE_ANALYTICS_ID must be a GA4 measurement ID beginning with G-" >&2
-  exit 1
+if [ ! -d "$CLIENT_DIR" ]; then
+    echo "❌ Client directory does not exist:"
+    echo "$CLIENT_DIR"
+    exit 1
 fi
 
-echo "Deploying FOLIOKIT from $APP_DIR"
+if [ ! -d "$SERVER_DIR" ]; then
+    echo "❌ Server directory does not exist:"
+    echo "$SERVER_DIR"
+    exit 1
+fi
+
+echo "✅ Directories found"
+
+
+# ============================================================
+# Pull latest source code
+# ============================================================
+
+echo ""
+echo "============================================================"
+echo "📥 Updating source code"
+echo "============================================================"
+
 cd "$APP_DIR"
+
 git fetch origin "$BRANCH"
+
 git checkout "$BRANCH"
-git reset --hard "$DEPLOY_COMMIT"
-echo "Deploying commit $(git rev-parse --short HEAD)"
+
+git pull --ff-only origin "$BRANCH"
+
+echo ""
+echo "Current commit:"
+git log -1 --oneline
+
+echo "✅ Source code updated"
+
+
+# ============================================================
+# CLIENT DEPLOYMENT
+# ============================================================
+
+echo ""
+echo "============================================================"
+echo "🌐 Deploying CLIENT"
+echo "============================================================"
+
+cd "$CLIENT_DIR"
+
+
+# ------------------------------------------------------------
+# Create client .env
+# ------------------------------------------------------------
+
+echo "📝 Updating client .env..."
 
 umask 077
-CLIENT_ENV="$CLIENT_DIR/.env.production"
-SERVER_ENV="$SERVER_DIR/.env.production"
-: > "$CLIENT_ENV"
-: > "$SERVER_ENV"
-chmod 600 "$CLIENT_ENV" "$SERVER_ENV"
 
-for name in VITE_BASE_URL VITE_GOOGLE_CLIENT_ID VITE_GOOGLE_ANALYTICS_ID; do
-  write_env_value "$CLIENT_ENV" "$name"
-done
+cat > "$CLIENT_ENV" <<EOF
+VITE_BASE_URL=${VITE_BASE_URL:-}
+VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID:-}
+VITE_GOOGLE_ANALYTICS_ID=${VITE_GOOGLE_ANALYTICS_ID:-}
+EOF
 
-for name in \
-  PORT NODE_ENV CLIENT_URL PUBLIC_API_URL ACME_EMAIL MONGODB_URI \
-  JWT_ACCESS_SECRET JWT_REFRESH_SECRET ACCESS_TOKEN_TTL_MINUTES REFRESH_TOKEN_TTL_DAYS \
-  GOOGLE_CLIENT_ID STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET \
-  CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET \
-  R2_MEDIA_URL_TTL_SECONDS R2_DOWNLOAD_URL_TTL_SECONDS \
-  MAX_IMAGE_SIZE_MB MAX_VIDEO_SIZE_MB MAX_THEME_ZIP_SIZE_MB \
-  ADMIN_EMAIL ADMIN_NAME ADMIN_PASSWORD \
-  RESEND_API_KEY EMAIL_FROM_ACCOUNT EMAIL_FROM_BILLING EMAIL_FROM_MARKETING EMAIL_REPLY_TO \
-  PAYPAL_CLIENT_ID PAYPAL_CLIENT_SECRET PAYPAL_WEBHOOK_ID PAYPAL_ENVIRONMENT \
-  SENTRY_DSN SENTRY_RELEASE SENTRY_TRACES_SAMPLE_RATE; do
-  write_env_if_set "$SERVER_ENV" "$name"
-done
+chmod 600 "$CLIENT_ENV"
 
-echo "Installing and building the client"
-cd "$CLIENT_DIR"
-npm ci
+echo "✅ Client .env updated"
+
+
+# ------------------------------------------------------------
+# Install client dependencies
+# ------------------------------------------------------------
+
+echo ""
+echo "📦 Installing client dependencies..."
+
+npm install
+
+echo "✅ Client dependencies installed"
+
+
+# ------------------------------------------------------------
+# Build client
+# ------------------------------------------------------------
+
+echo ""
+echo "🏗️ Building client..."
+
 npm run build
 
-echo "Installing and building the server"
-cd "$SERVER_DIR"
-npm ci
-npm run build
+echo "✅ Client build completed"
 
-if [[ ! -f "$CLIENT_DIR/dist/index.html" ]]; then
-  echo "Client build did not produce dist/index.html" >&2
-  exit 1
-fi
-if [[ ! -f "$SERVER_DIR/$PM2_ENTRY" ]]; then
-  echo "Server build did not produce $PM2_ENTRY" >&2
-  exit 1
-fi
 
-WEB_ROOT="$(mkdir -p "$WEB_ROOT" && cd "$WEB_ROOT" && pwd -P)"
-WEB_DIST="$WEB_ROOT/dist"
-case "$WEB_DIST" in
-  "$WEB_ROOT"/*) ;;
-  *)
-    echo "Refusing to deploy outside $WEB_ROOT" >&2
+# ------------------------------------------------------------
+# Validate dist
+# ------------------------------------------------------------
+
+if [ ! -d "$CLIENT_DIR/dist" ]; then
+    echo "❌ Client dist directory was not generated"
     exit 1
-    ;;
-esac
-
-NEXT_WEB_DIST="${WEB_DIST}.next"
-PREVIOUS_WEB_DIST="${WEB_DIST}.previous"
-rm -rf -- "$NEXT_WEB_DIST" "$PREVIOUS_WEB_DIST"
-mkdir -p "$NEXT_WEB_DIST"
-cp -R "$CLIENT_DIR/dist/." "$NEXT_WEB_DIST/"
-
-if [[ -d "$WEB_DIST" ]]; then
-  mv "$WEB_DIST" "$PREVIOUS_WEB_DIST"
 fi
-if ! mv "$NEXT_WEB_DIST" "$WEB_DIST"; then
-  if [[ -d "$PREVIOUS_WEB_DIST" ]]; then
-    mv "$PREVIOUS_WEB_DIST" "$WEB_DIST"
-  fi
-  exit 1
-fi
-rm -rf -- "$PREVIOUS_WEB_DIST"
 
-echo "Restarting $PM2_APP"
+
+# ------------------------------------------------------------
+# Deploy client build
+# ------------------------------------------------------------
+
+echo ""
+echo "📂 Deploying client to $WEB_ROOT..."
+
+sudo mkdir -p "$WEB_ROOT"
+
+# Remove previous build
+sudo rm -rf "$WEB_ROOT/dist"
+
+# Copy new build
+sudo cp -r "$CLIENT_DIR/dist" "$WEB_ROOT/"
+
+echo "✅ Client deployed to:"
+echo "$WEB_ROOT/dist"
+
+
+# ============================================================
+# SERVER DEPLOYMENT
+# ============================================================
+
+echo ""
+echo "============================================================"
+echo "⚙️ Deploying SERVER"
+echo "============================================================"
+
 cd "$SERVER_DIR"
-if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
-  pm2 restart "$PM2_APP" --update-env
-else
-  pm2 start "$SERVER_DIR/$PM2_ENTRY" --name "$PM2_APP" --cwd "$SERVER_DIR"
-fi
-pm2 save
-pm2 status "$PM2_APP"
 
-echo "Validating and reloading Nginx"
+
+# ------------------------------------------------------------
+# Create server .env
+# ------------------------------------------------------------
+
+echo "📝 Updating server .env..."
+
+umask 077
+
+cat > "$SERVER_ENV" <<EOF
+# ============================================================
+# Application
+# ============================================================
+
+PORT=${PORT:-5000}
+NODE_ENV=${NODE_ENV:-production}
+
+CLIENT_URL=${CLIENT_URL:-}
+PUBLIC_API_URL=${PUBLIC_API_URL:-}
+ACME_EMAIL=${ACME_EMAIL:-}
+
+
+# ============================================================
+# Database
+# ============================================================
+
+MONGODB_URI=${MONGODB_URI:-}
+
+
+# ============================================================
+# Authentication
+# ============================================================
+
+JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-}
+JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-}
+
+ACCESS_TOKEN_TTL_MINUTES=${ACCESS_TOKEN_TTL_MINUTES:-}
+REFRESH_TOKEN_TTL_DAYS=${REFRESH_TOKEN_TTL_DAYS:-}
+
+GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+
+
+# ============================================================
+# Stripe
+# ============================================================
+
+STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+
+
+# ============================================================
+# Cloudflare R2
+# ============================================================
+
+CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID:-}
+
+R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:-}
+R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}
+
+R2_BUCKET=${R2_BUCKET:-}
+
+R2_MEDIA_URL_TTL_SECONDS=${R2_MEDIA_URL_TTL_SECONDS:-3600}
+R2_DOWNLOAD_URL_TTL_SECONDS=${R2_DOWNLOAD_URL_TTL_SECONDS:-90}
+
+
+# ============================================================
+# Upload limits
+# ============================================================
+
+MAX_IMAGE_SIZE_MB=${MAX_IMAGE_SIZE_MB:-}
+MAX_VIDEO_SIZE_MB=${MAX_VIDEO_SIZE_MB:-}
+MAX_THEME_ZIP_SIZE_MB=${MAX_THEME_ZIP_SIZE_MB:-}
+
+
+# ============================================================
+# Admin
+# ============================================================
+
+ADMIN_EMAIL=${ADMIN_EMAIL:-}
+ADMIN_NAME=${ADMIN_NAME:-}
+ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+
+
+# ============================================================
+# Email / Resend
+# ============================================================
+
+RESEND_API_KEY=${RESEND_API_KEY:-}
+
+EMAIL_FROM_ACCOUNT=${EMAIL_FROM_ACCOUNT:-}
+EMAIL_FROM_BILLING=${EMAIL_FROM_BILLING:-}
+EMAIL_FROM_MARKETING=${EMAIL_FROM_MARKETING:-}
+EMAIL_REPLY_TO=${EMAIL_REPLY_TO:-}
+
+
+# ============================================================
+# PayPal
+# ============================================================
+
+PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID:-}
+PAYPAL_CLIENT_SECRET=${PAYPAL_CLIENT_SECRET:-}
+
+PAYPAL_WEBHOOK_ID=${PAYPAL_WEBHOOK_ID:-}
+PAYPAL_ENVIRONMENT=${PAYPAL_ENVIRONMENT:-}
+
+
+# ============================================================
+# Sentry
+# ============================================================
+
+SENTRY_DSN=${SENTRY_DSN:-}
+SENTRY_RELEASE=${SENTRY_RELEASE:-}
+SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+EOF
+
+chmod 600 "$SERVER_ENV"
+
+echo "✅ Server .env updated"
+
+
+# ------------------------------------------------------------
+# Install server dependencies
+# ------------------------------------------------------------
+
+echo ""
+echo "📦 Installing server dependencies..."
+
+npm install
+
+echo "✅ Server dependencies installed"
+
+
+# ------------------------------------------------------------
+# Build server
+# ------------------------------------------------------------
+
+echo ""
+echo "🏗️ Building server..."
+
+npm run build
+
+echo "✅ Server build completed"
+
+
+# ============================================================
+# Restart PM2
+# ============================================================
+
+echo ""
+echo "============================================================"
+echo "♻️ Restarting server"
+echo "============================================================"
+
+if pm2 describe "$PM2_APP" > /dev/null 2>&1; then
+
+    echo "Restarting existing PM2 process..."
+
+    pm2 restart "$PM2_APP" --update-env
+
+else
+
+    echo "❌ PM2 application '$PM2_APP' does not exist."
+    echo ""
+    echo "Create it first, for example:"
+    echo ""
+    echo "cd $SERVER_DIR"
+    echo "pm2 start dist/index.js --name $PM2_APP"
+    echo "pm2 save"
+
+    exit 1
+
+fi
+
+echo "✅ PM2 server restarted"
+
+
+# ============================================================
+# Nginx validation
+# ============================================================
+
+echo ""
+echo "============================================================"
+echo "🔎 Checking Nginx"
+echo "============================================================"
+
 sudo nginx -t
+
+echo "✅ Nginx configuration valid"
+
+
+# ============================================================
+# Reload Nginx
+# ============================================================
+
+echo ""
+echo "♻️ Reloading Nginx..."
+
 sudo systemctl reload nginx
 
-echo "FOLIOKIT deployment completed successfully"
+echo "✅ Nginx reloaded"
+
+
+# ============================================================
+# PM2 status
+# ============================================================
+
+echo ""
+echo "============================================================"
+echo "📊 PM2 Status"
+echo "============================================================"
+
+pm2 status "$PM2_APP"
+
+
+# ============================================================
+# Deployment complete
+# ============================================================
+
+echo ""
+echo "============================================================"
+echo "✅ FOLIOKIT DEPLOYMENT COMPLETED"
+echo "============================================================"
+echo "Commit:     ${DEPLOY_COMMIT:-unknown}"
+echo "Client:     $WEB_ROOT/dist"
+echo "Server:     $PM2_APP"
+echo "Environment: production"
+echo "============================================================"
+echo ""

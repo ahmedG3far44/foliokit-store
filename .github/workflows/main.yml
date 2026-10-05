@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+
   workflow_dispatch:
 
 permissions:
@@ -15,72 +16,137 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy on production runner
-    runs-on: [self-hosted, linux]
+    name: Deploy FOLIOKIT Production
+    runs-on:
+      - self-hosted
+      - linux
+
     timeout-minutes: 30
+
     env:
-      APP_DIR: ${{ vars.APP_DIR || '/home/foliokit-store' }}
-      WEB_ROOT: ${{ vars.WEB_ROOT || '/var/www/foliokit' }}
-      PM2_APP: ${{ vars.PM2_APP || 'foliokit-server' }}
+      # ---------------------------------------------------------
+      # Deployment configuration
+      # ---------------------------------------------------------
+      APP_DIR: /home/foliokit/foliokit-store
+      CLIENT_DIR: /home/foliokit/foliokit-store/client
+      SERVER_DIR: /home/foliokit/foliokit-store/server
+
+      WEB_ROOT: /var/www/foliokit
+      PM2_APP: foliokit-server
       BRANCH: main
+
       DEPLOY_COMMIT: ${{ github.sha }}
 
+      # ---------------------------------------------------------
+      # Server environment
+      # ---------------------------------------------------------
       PORT: ${{ secrets.PORT }}
       NODE_ENV: production
+
       CLIENT_URL: ${{ secrets.CLIENT_URL }}
       PUBLIC_API_URL: ${{ secrets.PUBLIC_API_URL }}
+
       ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
 
+      # ---------------------------------------------------------
+      # Database
+      # ---------------------------------------------------------
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
 
+      # ---------------------------------------------------------
+      # Authentication
+      # ---------------------------------------------------------
       JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
       JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+
       ACCESS_TOKEN_TTL_MINUTES: ${{ secrets.ACCESS_TOKEN_TTL_MINUTES }}
       REFRESH_TOKEN_TTL_DAYS: ${{ secrets.REFRESH_TOKEN_TTL_DAYS }}
 
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
 
+      # ---------------------------------------------------------
+      # Stripe
+      # ---------------------------------------------------------
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
+      # ---------------------------------------------------------
+      # Cloudflare R2
+      # ---------------------------------------------------------
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
+
       R2_MEDIA_URL_TTL_SECONDS: ${{ secrets.R2_MEDIA_URL_TTL_SECONDS }}
       R2_DOWNLOAD_URL_TTL_SECONDS: ${{ secrets.R2_DOWNLOAD_URL_TTL_SECONDS }}
 
+      # ---------------------------------------------------------
+      # Upload limits
+      # ---------------------------------------------------------
       MAX_IMAGE_SIZE_MB: ${{ secrets.MAX_IMAGE_SIZE_MB }}
       MAX_VIDEO_SIZE_MB: ${{ secrets.MAX_VIDEO_SIZE_MB }}
       MAX_THEME_ZIP_SIZE_MB: ${{ secrets.MAX_THEME_ZIP_SIZE_MB }}
 
+      # ---------------------------------------------------------
+      # Admin
+      # ---------------------------------------------------------
       ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
       ADMIN_NAME: ${{ secrets.ADMIN_NAME }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
 
+      # ---------------------------------------------------------
+      # Resend
+      # ---------------------------------------------------------
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+
       EMAIL_FROM_ACCOUNT: ${{ secrets.EMAIL_FROM_ACCOUNT }}
       EMAIL_FROM_BILLING: ${{ secrets.EMAIL_FROM_BILLING }}
       EMAIL_FROM_MARKETING: ${{ secrets.EMAIL_FROM_MARKETING }}
       EMAIL_REPLY_TO: ${{ secrets.EMAIL_REPLY_TO }}
 
+      # ---------------------------------------------------------
+      # PayPal
+      # ---------------------------------------------------------
       PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
       PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
       PAYPAL_WEBHOOK_ID: ${{ secrets.PAYPAL_WEBHOOK_ID }}
       PAYPAL_ENVIRONMENT: ${{ secrets.PAYPAL_ENVIRONMENT }}
 
+      # ---------------------------------------------------------
+      # Sentry
+      # ---------------------------------------------------------
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
       SENTRY_RELEASE: ${{ github.sha }}
+
       SENTRY_TRACES_SAMPLE_RATE: ${{ vars.SENTRY_TRACES_SAMPLE_RATE || '0.1' }}
 
+      # ---------------------------------------------------------
+      # Client / Vite
+      # ---------------------------------------------------------
       VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
       VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
-      VITE_GOOGLE_ANALYTICS_ID: ${{ vars.VITE_GOOGLE_ANALYTICS_ID || secrets.VITE_GOOGLE_ANALYTICS_ID }}
+      VITE_GOOGLE_ANALYTICS_ID: ${{ secrets.VITE_GOOGLE_ANALYTICS_ID }}
 
     steps:
-      - name: Check out deployment script
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Show deployment information
+        run: |
+          echo "=========================================="
+          echo "🚀 FOLIOKIT PRODUCTION DEPLOYMENT"
+          echo "=========================================="
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Runner: ${{ runner.name }}"
+          echo "App directory: $APP_DIR"
+          echo "=========================================="
+
+      - name: Make deploy script executable
+        run: chmod +x ./deploy.sh
 
       - name: Deploy client and server
         shell: bash
-        run: bash ./deploy.sh
+        run: ./deploy.sh
