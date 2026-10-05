@@ -1,4 +1,3 @@
-```bash
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
@@ -459,9 +458,8 @@ npm run build
 
 echo "✅ Server build completed"
 
-
 # ============================================================
-# Validate Nginx BEFORE restarting services
+# Validate Nginx
 # ============================================================
 
 echo ""
@@ -484,23 +482,19 @@ echo "♻️ Restarting server"
 echo "============================================================"
 
 if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
-
     echo "Restarting existing PM2 process..."
 
     pm2 restart "$PM2_APP" --update-env
-
 else
-
     echo "❌ PM2 application '$PM2_APP' does not exist."
     echo ""
-    echo "Create it first, for example:"
+    echo "Create it first:"
     echo ""
     echo "cd $SERVER_DIR"
     echo "pm2 start dist/index.js --name $PM2_APP"
     echo "pm2 save"
 
     exit 1
-
 fi
 
 echo "✅ PM2 server restarted"
@@ -540,10 +534,9 @@ echo ""
 echo "============================================================"
 echo "✅ FOLIOKIT DEPLOYMENT COMPLETED"
 echo "============================================================"
-echo "Commit:       ${DEPLOY_COMMIT:-unknown}"
-echo "Client:       $WEB_ROOT/dist"
-echo "Server:       $PM2_APP"
-echo "Environment:  production"
+echo "Commit:      ${DEPLOY_COMMIT:-unknown}"
+echo "Client:      $WEB_ROOT/dist"
+echo "Server:      $PM2_APP"
+echo "Environment: production"
 echo "============================================================"
 echo ""
-```
