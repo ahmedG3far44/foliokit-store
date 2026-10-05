@@ -266,6 +266,12 @@ sudo rm -rf "$WEB_ROOT/dist"
 # Copy new frontend build
 sudo cp -r "$CLIENT_DIR/dist" "$WEB_ROOT/"
 
+
+sudo chown -R www-data:www-data "$WEB_ROOT/dist"
+sudo find "$WEB_ROOT/dist" -type d -exec chmod 755 {} \;
+sudo find "$WEB_ROOT/dist" -type f -exec chmod 644 {} \;
+
+
 echo "✅ Client deployed to:"
 echo "$WEB_ROOT/dist"
 
