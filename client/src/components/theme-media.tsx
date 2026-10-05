@@ -1,4 +1,6 @@
 import type { PublicAsset } from "../lib/types";
+import { useState } from "react";
+import { FallbackImage } from "./fallback-image";
 
 
 export function ThemeMedia({
@@ -15,20 +17,11 @@ export function ThemeMedia({
   autoPlay?: boolean;
   className?: string;
 }) {
-
   const url = asset?.kind === "image" ? asset.variants?.at(-1)?.url ?? asset.url : asset?.url;
+  const [failedVideo, setFailedVideo] = useState<string>();
 
-  if (!url) {
+  if (asset?.kind === "video" && url && failedVideo !== url) {
     return (
-      <span className={`flex items-center justify-center bg-neutral-100 text-[13px] font-medium text-neutral-400 ${className}`}>
-        {alt}
-      </span>
-    );
-  }
-
-  if (asset?.kind === "video") {
-    return (
-
       <video
         src={url}
         aria-label={alt}
@@ -37,12 +30,12 @@ export function ThemeMedia({
         muted={preview}
         playsInline
         controls={!preview}
-        preload="metadata"
+        preload={preview ? "auto" : "metadata"}
         className={className}
+        onError={() => setFailedVideo(url)}
       />
-
     );
   }
 
-  return <img src={url} alt={alt} loading="lazy" className={className} />
+  return <FallbackImage src={url} alt={alt} loading="eager" decoding="async" className={className} />;
 }

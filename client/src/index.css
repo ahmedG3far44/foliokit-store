@@ -6109,6 +6109,7 @@ tbody tr:hover {
   color: var(--brand);
 }
 .detail-section {
+  width: 100%;
   margin-top: 55px;
   padding-top: 40px;
   border-top: 1px solid var(--line);
@@ -6757,7 +6758,22 @@ tbody tr:hover {
 
 /* Theme image carousel */
 .theme-gallery {
+  width: 100%;
   min-width: 0;
+}
+.fallback-image {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: linear-gradient(180deg, #d4a8dd, #b8a8dc, #9db4dc);
+}
+.fallback-image > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .gallery-viewport {
   position: relative;

@@ -1,13 +1,11 @@
 import type { PublicAsset } from "../lib/types";
-import { ChevronLeft, ChevronRight, ImageOff, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type TouchEvent } from "react";
+import { FallbackImage } from "./fallback-image";
 
 function GalleryImage({ asset, alt, eager = false }: { asset: PublicAsset; alt: string; eager?: boolean }) {
   const url = asset.variants?.at(-1)?.url ?? asset.url;
-  const [failed, setFailed] = useState(false);
-  return !url || failed
-    ? <span className="gallery-image-unavailable"><ImageOff size={24} />Image unavailable</span>
-    : <img src={url} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" draggable={false} onError={() => setFailed(true)} />;
+  return <FallbackImage src={url} alt={alt} loading="eager" fetchPriority={eager ? "high" : "auto"} decoding="async" draggable={false} />;
 }
 
 export function ThemeGallery({ images, name }: { images: PublicAsset[]; name: string }) {

@@ -1,31 +1,55 @@
-const TOOLS = [
-  { name: "React", slug: "react" },
-  { name: "Next.js", slug: "nextdotjs" },
-  { name: "Vue.js", slug: "vuedotjs" },
-  { name: "Svelte", slug: "svelte" },
-  { name: "Astro", slug: "astro" },
-  { name: "Tailwind CSS", slug: "tailwindcss" },
-  { name: "GSAP", slug: "greensock" },
-  { name: "Framer", slug: "framer" },
-  { name: "Webflow", slug: "webflow" },
-  { name: "TypeScript", slug: "typescript" },
-  { name: "Node.js", slug: "nodedotjs" },
-  { name: "Vite", slug: "vite" },
+import {
+  siAstro,
+  siFramer,
+  siGsap,
+  siNextdotjs,
+  siNodedotjs,
+  siReact,
+  siSvelte,
+  siTailwindcss,
+  siTypescript,
+  siVite,
+  siVuedotjs,
+  siWebflow,
+  type SimpleIcon,
+} from "simple-icons";
+
+interface Tool {
+  name: string;
+  icon: SimpleIcon;
+}
+
+const TOOLS: readonly Tool[] = [
+  { name: "React", icon: siReact },
+  { name: "Next.js", icon: siNextdotjs },
+  { name: "Vue.js", icon: siVuedotjs },
+  { name: "Svelte", icon: siSvelte },
+  { name: "Astro", icon: siAstro },
+  { name: "Tailwind CSS", icon: siTailwindcss },
+  { name: "GSAP", icon: siGsap },
+  { name: "Framer", icon: siFramer },
+  { name: "Webflow", icon: siWebflow },
+  { name: "TypeScript", icon: siTypescript },
+  { name: "Node.js", icon: siNodedotjs },
+  { name: "Vite", icon: siVite },
 ];
 
-function LogoItem({ name, slug }: { name: string; slug: string }) {
+const TRACK = [...TOOLS, ...TOOLS];
+
+function LogoItem({ name, icon }: Tool) {
   return (
     <div
       className="flex flex-shrink-0 items-center gap-3 px-10 opacity-60 grayscale transition-opacity duration-300 hover:opacity-100"
       title={name}
     >
-      <img
-        src={`https://cdn.simpleicons.org/${slug}/000000`}
-        alt={name}
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        focusable="false"
         className="h-8 w-8 object-contain md:h-9 md:w-9"
-        loading="lazy"
-        draggable={false}
-      />
+      >
+        <path d={icon.path} fill="currentColor" />
+      </svg>
       <span className="whitespace-nowrap text-sm font-medium tracking-wide text-black md:text-base">
         {name}
       </span>
@@ -34,9 +58,6 @@ function LogoItem({ name, slug }: { name: string; slug: string }) {
 }
 
 export default function LogoMarquee() {
-  // Duplicate the list so the track can loop seamlessly at -50%.
-  const track = [...TOOLS, ...TOOLS];
-
   return (
     <div className="w-full bg-background py-8">
       <div className="relative w-full overflow-hidden">
@@ -45,8 +66,8 @@ export default function LogoMarquee() {
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-background to-transparent md:w-32" />
 
         <div className="flex w-max animate-marquee">
-          {track.map((tool, i) => (
-            <LogoItem key={`${tool.slug}-${i}`} name={tool.name} slug={tool.slug} />
+          {TRACK.map((tool, i) => (
+            <LogoItem key={`${tool.icon.slug}-${i}`} name={tool.name} icon={tool.icon} />
           ))}
         </div>
       </div>
