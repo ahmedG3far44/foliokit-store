@@ -29,7 +29,7 @@ jobs:
       # ---------------------------------------------------------
       APP_DIR: /home/foliokit/actions-runner/_work/foliokit-store/foliokit-store
       CLIENT_DIR: /home/foliokit/actions-runner/_work/foliokit-store/foliokit-store/client
-      SERVER_DIR: /home/foliokit/actions-runner/_work/foliokit-store/foliokit-store/server
+      SERVER_DIR: /home/foliokit/actions-runner/_work/foliokit-store/foliokit-store/server 
 
       WEB_ROOT: /var/www/foliokit
       PM2_APP: foliokit-server
