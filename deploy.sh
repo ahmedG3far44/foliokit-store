@@ -6,7 +6,7 @@ set -Eeuo pipefail
 # FOLIOKIT Production Deployment
 # ============================================================
 
-APP_DIR="${APP_DIR:-/home/foliokit/foliokit-store}"
+APP_DIR="${APP_DIR:-/home/actions-runner/_work/foliokit-store/foliokit-store}"
 
 CLIENT_DIR="${CLIENT_DIR:-$APP_DIR/client}"
 SERVER_DIR="${SERVER_DIR:-$APP_DIR/server}"
