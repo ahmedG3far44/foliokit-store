@@ -41,8 +41,6 @@ jobs:
       # Server environment
       # ---------------------------------------------------------
       PORT: ${{ secrets.PORT }}
-      NODE_ENV: production
-
       CLIENT_URL: ${{ secrets.CLIENT_URL }}
       PUBLIC_API_URL: ${{ secrets.PUBLIC_API_URL }}
 

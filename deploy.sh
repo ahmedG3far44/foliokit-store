@@ -1,3 +1,4 @@
+```bash
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
@@ -50,21 +51,41 @@ echo ""
 echo "============================================================"
 echo "🚀 FOLIOKIT PRODUCTION DEPLOYMENT"
 echo "============================================================"
-echo "App:        $APP_DIR"
-echo "Client:     $CLIENT_DIR"
-echo "Server:     $SERVER_DIR"
-echo "Web root:   $WEB_ROOT"
-echo "PM2 app:    $PM2_APP"
-echo "Branch:     $BRANCH"
-echo "Commit:     ${DEPLOY_COMMIT:-unknown}"
+echo "App:         $APP_DIR"
+echo "Client:      $CLIENT_DIR"
+echo "Server:      $SERVER_DIR"
+echo "Web root:    $WEB_ROOT"
+echo "PM2 app:     $PM2_APP"
+echo "Branch:      $BRANCH"
+echo "Commit:      ${DEPLOY_COMMIT:-unknown}"
 echo "============================================================"
 echo ""
+
+
+# ============================================================
+# Validate required commands
+# ============================================================
+
+echo "🔎 Checking required commands..."
+
+for command in git node npm pm2; do
+    if ! command -v "$command" >/dev/null 2>&1; then
+        echo "❌ Required command not found: $command"
+        exit 1
+    fi
+done
+
+echo "Node version: $(node --version)"
+echo "npm version:  $(npm --version)"
+
+echo "✅ Required commands available"
 
 
 # ============================================================
 # Validate directories
 # ============================================================
 
+echo ""
 echo "🔎 Checking project directories..."
 
 if [ ! -d "$APP_DIR" ]; then
@@ -85,7 +106,17 @@ if [ ! -d "$SERVER_DIR" ]; then
     exit 1
 fi
 
-echo "✅ Directories found"
+if [ ! -f "$CLIENT_DIR/package.json" ]; then
+    echo "❌ Client package.json not found"
+    exit 1
+fi
+
+if [ ! -f "$SERVER_DIR/package.json" ]; then
+    echo "❌ Server package.json not found"
+    exit 1
+fi
+
+echo "✅ Project directories found"
 
 
 # ============================================================
@@ -123,11 +154,15 @@ echo "============================================================"
 
 cd "$CLIENT_DIR"
 
+echo "Current directory:"
+pwd
+
 
 # ------------------------------------------------------------
 # Create client .env
 # ------------------------------------------------------------
 
+echo ""
 echo "📝 Updating client .env..."
 
 umask 077
@@ -150,9 +185,39 @@ echo "✅ Client .env updated"
 echo ""
 echo "📦 Installing client dependencies..."
 
-npm install
+if [ -f "$CLIENT_DIR/package-lock.json" ]; then
+    echo "Using npm ci..."
+    npm ci --include=dev
+else
+    echo "package-lock.json not found. Using npm install..."
+    npm install --include=dev
+fi
 
 echo "✅ Client dependencies installed"
+
+
+# ------------------------------------------------------------
+# Verify TypeScript
+# ------------------------------------------------------------
+
+echo ""
+echo "🔎 Checking client TypeScript compiler..."
+
+if [ ! -x "$CLIENT_DIR/node_modules/.bin/tsc" ]; then
+    echo "❌ TypeScript compiler was not installed."
+    echo ""
+    echo "Installed TypeScript package:"
+    npm ls typescript || true
+    echo ""
+    echo "Make sure TypeScript exists in client devDependencies:"
+    echo 'npm install --save-dev typescript'
+    exit 1
+fi
+
+echo "Client TypeScript version:"
+npx tsc --version
+
+echo "✅ Client TypeScript available"
 
 
 # ------------------------------------------------------------
@@ -171,10 +236,20 @@ echo "✅ Client build completed"
 # Validate dist
 # ------------------------------------------------------------
 
+echo ""
+echo "🔎 Validating client build..."
+
 if [ ! -d "$CLIENT_DIR/dist" ]; then
     echo "❌ Client dist directory was not generated"
     exit 1
 fi
+
+if [ ! -f "$CLIENT_DIR/dist/index.html" ]; then
+    echo "❌ Client dist/index.html was not generated"
+    exit 1
+fi
+
+echo "✅ Client build validated"
 
 
 # ------------------------------------------------------------
@@ -186,10 +261,10 @@ echo "📂 Deploying client to $WEB_ROOT..."
 
 sudo mkdir -p "$WEB_ROOT"
 
-# Remove previous build
+# Remove previous frontend build
 sudo rm -rf "$WEB_ROOT/dist"
 
-# Copy new build
+# Copy new frontend build
 sudo cp -r "$CLIENT_DIR/dist" "$WEB_ROOT/"
 
 echo "✅ Client deployed to:"
@@ -207,11 +282,15 @@ echo "============================================================"
 
 cd "$SERVER_DIR"
 
+echo "Current directory:"
+pwd
+
 
 # ------------------------------------------------------------
 # Create server .env
 # ------------------------------------------------------------
 
+echo ""
 echo "📝 Updating server .env..."
 
 umask 077
@@ -222,7 +301,7 @@ cat > "$SERVER_ENV" <<EOF
 # ============================================================
 
 PORT=${PORT:-5000}
-NODE_ENV=${NODE_ENV:-production}
+NODE_ENV=production
 
 CLIENT_URL=${CLIENT_URL:-}
 PUBLIC_API_URL=${PUBLIC_API_URL:-}
@@ -334,9 +413,39 @@ echo "✅ Server .env updated"
 echo ""
 echo "📦 Installing server dependencies..."
 
-npm install
+if [ -f "$SERVER_DIR/package-lock.json" ]; then
+    echo "Using npm ci..."
+    npm ci --include=dev
+else
+    echo "package-lock.json not found. Using npm install..."
+    npm install --include=dev
+fi
 
 echo "✅ Server dependencies installed"
+
+
+# ------------------------------------------------------------
+# Verify server TypeScript
+# ------------------------------------------------------------
+
+echo ""
+echo "🔎 Checking server TypeScript compiler..."
+
+if [ ! -x "$SERVER_DIR/node_modules/.bin/tsc" ]; then
+    echo "❌ TypeScript compiler was not installed."
+    echo ""
+    echo "Installed TypeScript package:"
+    npm ls typescript || true
+    echo ""
+    echo "Make sure TypeScript exists in server devDependencies:"
+    echo 'npm install --save-dev typescript'
+    exit 1
+fi
+
+echo "Server TypeScript version:"
+npx tsc --version
+
+echo "✅ Server TypeScript available"
 
 
 # ------------------------------------------------------------
@@ -352,6 +461,20 @@ echo "✅ Server build completed"
 
 
 # ============================================================
+# Validate Nginx BEFORE restarting services
+# ============================================================
+
+echo ""
+echo "============================================================"
+echo "🔎 Validating Nginx configuration"
+echo "============================================================"
+
+sudo nginx -t
+
+echo "✅ Nginx configuration valid"
+
+
+# ============================================================
 # Restart PM2
 # ============================================================
 
@@ -360,7 +483,7 @@ echo "============================================================"
 echo "♻️ Restarting server"
 echo "============================================================"
 
-if pm2 describe "$PM2_APP" > /dev/null 2>&1; then
+if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
 
     echo "Restarting existing PM2 process..."
 
@@ -384,25 +507,13 @@ echo "✅ PM2 server restarted"
 
 
 # ============================================================
-# Nginx validation
-# ============================================================
-
-echo ""
-echo "============================================================"
-echo "🔎 Checking Nginx"
-echo "============================================================"
-
-sudo nginx -t
-
-echo "✅ Nginx configuration valid"
-
-
-# ============================================================
 # Reload Nginx
 # ============================================================
 
 echo ""
-echo "♻️ Reloading Nginx..."
+echo "============================================================"
+echo "♻️ Reloading Nginx"
+echo "============================================================"
 
 sudo systemctl reload nginx
 
@@ -429,9 +540,10 @@ echo ""
 echo "============================================================"
 echo "✅ FOLIOKIT DEPLOYMENT COMPLETED"
 echo "============================================================"
-echo "Commit:     ${DEPLOY_COMMIT:-unknown}"
-echo "Client:     $WEB_ROOT/dist"
-echo "Server:     $PM2_APP"
-echo "Environment: production"
+echo "Commit:       ${DEPLOY_COMMIT:-unknown}"
+echo "Client:       $WEB_ROOT/dist"
+echo "Server:       $PM2_APP"
+echo "Environment:  production"
 echo "============================================================"
 echo ""
+```
