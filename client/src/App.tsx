@@ -5,9 +5,10 @@ import NotFoundPage from './routes/error/not-found'
 
 import { Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/auth-context'
-import { AdminLayout } from './components/admin/admin-layout'
+import { StaticRouter } from 'react-router-dom'
+import { Seo } from './components/seo'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 
 import { ToastProvider } from './context/toast-context'
 import { CartProvider } from './context/cart-context'
@@ -16,6 +17,7 @@ import { GoogleAnalytics } from './components/google-analytics'
 
 
 const InsightsPage = lazy(() => import('./routes/admin/insights'))
+const AdminLayout = lazy(() => import('./components/admin/admin-layout').then((module) => ({ default: module.AdminLayout })))
 const UsersPage = lazy(() => import('./routes/admin/users'))
 const TransactionsPage = lazy(() => import('./routes/admin/transactions'))
 const ThemesPage = lazy(() => import('./routes/themes'))
@@ -49,14 +51,23 @@ function SiteFooter() {
   return <Footer />
 }
 
+function RouteBoundary({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
+  // The eager homepage hydrates immediately, before session effects run.
+  if (pathname === '/') return children
+  return <Suspense fallback={<div className="page-loader"><Spinner size="md" /></div>}>{children}</Suspense>
+}
 
-function App() {
+
+function App({ serverUrl }: { serverUrl?: string }) {
+  const Router = serverUrl === undefined ? BrowserRouter : StaticRouter
   return (
-    <BrowserRouter>
+    <Router location={serverUrl ?? '/'}>
+      <Seo />
       <GoogleAnalytics />
       <AuthProvider>
         <ToastProvider><CartProvider>
-          <Suspense fallback={<div className="page-loader"><Spinner size="md" /></div>}><Routes>
+          <RouteBoundary><Routes>
             <Route index path='/' element={<Home />} />
             <Route path='/profile' element={<Protected><Navigate to="/" replace /></Protected>} />
             <Route path='/subscription' element={<Protected><Navigate to="/" replace /></Protected>} />
@@ -94,10 +105,10 @@ function App() {
             </Route>
             <Route path='/admin/*' element={<Navigate to="/dashboard/insights" replace />} />
             <Route path='*' element={<NotFoundPage />} />
-          </Routes><SiteFooter /></Suspense>
+          </Routes><SiteFooter /></RouteBoundary>
         </CartProvider></ToastProvider>
       </AuthProvider>
-    </BrowserRouter>
+    </Router>
   )
 }
 

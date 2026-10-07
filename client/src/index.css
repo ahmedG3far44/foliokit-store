@@ -2792,7 +2792,7 @@ tbody tr:hover {
   display: grid;
   place-items: center;
   color: #5d5a93;
-  background: linear-gradient(135deg, #e9e5fa, #d9e6df);
+  background: var(--soft);
   font: 800 3rem/1 system-ui;
   border-radius: 10px;
   isolation: isolate;
@@ -3269,7 +3269,7 @@ tbody tr:hover {
   place-items: center;
   border-radius: 20px;
   color: #595486;
-  background: linear-gradient(180deg, #d4a8dd, #b8a8dc, #9db4dc);
+  background: var(--soft);
   font-size: 2rem;
   font-weight: 800;
 }
@@ -6768,7 +6768,18 @@ tbody tr:hover {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: linear-gradient(180deg, #d4a8dd, #b8a8dc, #9db4dc);
+  border-radius: inherit;
+}
+.fallback-image:not([data-loading]) {
+  background: var(--soft);
+}
+.fallback-image[data-loading] > img {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fallback-image.skeleton::after {
+    animation: none;
+  }
 }
 .fallback-image > img {
   width: 100%;

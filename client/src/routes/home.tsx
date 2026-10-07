@@ -9,6 +9,7 @@ import { useAppAuth } from "../context/auth-store";
 import { useCart } from "../context/cart-store";
 import { useAsync } from "../hooks/use-async";
 import { api } from "../lib/api";
+import { preloadThemePreviews } from "../lib/preload-theme-previews";
 import HeroSection from "../components/hero";
 import LogoMarquee from "@/components/logos-loop";
 
@@ -19,7 +20,7 @@ export default function Home() {
   const { data, error, isLoading, run, clearError } = useAsync<CatalogResponse>();
 
   useEffect(() => {
-    void run(api.get<CatalogResponse>("/themes?featured=true&limit=6&sort=popular")).catch(() => undefined);
+    void run(api.get<CatalogResponse>("/themes?featured=true&limit=6&sort=popular").then(preloadThemePreviews)).catch(() => undefined);
   }, [run]);
 
   useEffect(() => {
@@ -41,7 +42,9 @@ export default function Home() {
     page.classList.add("reveal-ready");
 
     const observer = new IntersectionObserver(
-      (entries) => entries.forEach((entry) => entry.target.classList.toggle("is-visible", entry.isIntersecting)),
+      (entries) => entries.forEach((entry) => {
+        if (entry.isIntersecting) { entry.target.classList.add("is-visible"); observer.unobserve(entry.target); }
+      }),
       { rootMargin: "8% 0px 8%", threshold: 0.12 },
     );
 
@@ -75,7 +78,7 @@ export default function Home() {
             onAdd={user && user.role !== "admin" ? (id) => void cart.add(id).catch(() => undefined) : undefined}
             adding={cart.isLoading}
           />)}</div>
-        ) : <div className="catalog-empty">Featured themes will appear here as soon as an administrator publishes them.</div>}
+        ) : <div className="catalog-empty"><Link to="/themes">Explore our portfolio template collection</Link></div>}
       </section>
 
       <section className="launch-process landing-reveal" data-reveal aria-labelledby="launch-process-title">

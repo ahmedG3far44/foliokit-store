@@ -19,6 +19,7 @@ import { ThemeGallery } from "../components/theme-gallery";
 import { ArrowLeft, ArrowUpRight, Check, Download, Eye, ShoppingBag } from "lucide-react";
 
 import type { ThemeType } from "../lib/types";
+import { Seo } from "../components/seo";
 
 export default function ThemeDetailPage() {
   const cart = useCart();
@@ -39,7 +40,7 @@ export default function ThemeDetailPage() {
   />
   const theme = request.data;
 
-  return <div className="store-page"><Header /><main className="detail-page">
+  return <div className="store-page"><Seo title={`${theme.name} | Portfolio Template | Folio Kit`} description={theme.description} /><Header /><main className="detail-page">
 
     <Link className="back-link" to="/themes"><ArrowLeft size={16} />All themes</Link>
 

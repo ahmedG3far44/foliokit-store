@@ -11,6 +11,7 @@ import { useAppAuth } from "../context/auth-store";
 import { useCart } from "../context/cart-store";
 import { useAsync } from "../hooks/use-async";
 import { api } from "../lib/api";
+import { preloadThemePreviews } from "../lib/preload-theme-previews";
 
 export default function ThemesPage() {
   const [filters, setFilters] = useState({ search: "", stack: "", sort: "newest", page: 1 });
@@ -22,7 +23,7 @@ export default function ThemesPage() {
     const params = new URLSearchParams({ sort: filters.sort, page: String(filters.page), limit: "12" });
     if (filters.search) params.set("search", filters.search);
     if (filters.stack) params.set("stack", filters.stack);
-    return request.run(api.get<CatalogResponse>(`/themes?${params}`)).catch(() => undefined);
+    return request.run(api.get<CatalogResponse>(`/themes?${params}`).then(preloadThemePreviews)).catch(() => undefined);
   }, [filters, request.run]);
 
   useEffect(() => { void load(); }, [load]);

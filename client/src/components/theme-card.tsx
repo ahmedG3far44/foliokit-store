@@ -72,10 +72,12 @@ export function ThemeCard({ theme, inCart = false, isAdmin = false, onAdd, addin
 
   void theme.stack;
 
+  // make the card link to the preview page
+  // TODO: make it open in a modal
+  console.log("theme", theme);
+  
   return (
     <article className="group overflow-hidden rounded-2xl bg-transparent">
-
-
       <div
         ref={previewRef}
         onMouseEnter={startPreview}
@@ -98,7 +100,8 @@ export function ThemeCard({ theme, inCart = false, isAdmin = false, onAdd, addin
             alt={`Preview of ${theme.name}`}
             preview
             autoPlay={false}
-            className="h-full w-full cursor-pointer object-cover transition-transform duration-300 group-hover:scale-[1.03] bg-gradient-to-b from-[#d4a8dd] via-[#b8a8dc] to-[#9db4dc]"
+            loading="eager"
+            className="h-full w-full cursor-pointer object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         </Link>
       </div>

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { QueryFilter } from "mongoose";
-import { getR2Client } from "../config/r2.ts";
+import { getR2Client, getR2SigningDate } from "../config/r2.ts";
 import EntitlementModel, { type EntitlementDocument } from "../models/entitlement.ts";
 import OrderModel, { type OrderDocument } from "../models/order.ts";
 import { DownloadEventModel } from "../models/operations.ts";
@@ -35,7 +35,7 @@ export async function issueDownload(input: { entitlementId: string; userId: unkn
     await DownloadEventModel.create({ ...event, result: "denied" });
     throw new AppError(503, "DOWNLOAD_UNAVAILABLE", "The download is temporarily unavailable");
   }
-  const url = await getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: env.R2_BUCKET, Key: asset.key, ResponseContentDisposition: `attachment; filename="${asset.originalName.replaceAll('"', "")}"` }), { expiresIn: env.R2_DOWNLOAD_URL_TTL_SECONDS });
+  const url = await getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: env.R2_BUCKET, Key: asset.key, ResponseContentDisposition: `attachment; filename="${asset.originalName.replaceAll('"', "")}"` }), { expiresIn: env.R2_DOWNLOAD_URL_TTL_SECONDS, signingDate: await getR2SigningDate() });
   await DownloadEventModel.create({ ...event, result: "issued" });
   return { url, expiresInSeconds: env.R2_DOWNLOAD_URL_TTL_SECONDS, downloadsUsed: entitlement.downloadsUsed + 1, downloadLimit: entitlement.downloadLimit };
 }

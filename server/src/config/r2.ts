@@ -1,5 +1,17 @@
 import env from "./env.ts";
 import { S3Client } from "@aws-sdk/client-s3";
+import { createSigningClock } from "../utils/signing-clock.ts";
+
+export const getR2SigningDate = createSigningClock(async () => {
+  assertR2Configured();
+  // The HTTPS Date header is available even on R2's unauthenticated response.
+  // No bucket data or credentials are sent by this clock check.
+  const response = await fetch(`https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, {
+    method: "HEAD",
+    signal: AbortSignal.timeout(5_000),
+  });
+  return Date.parse(response.headers.get("date") ?? "");
+});
 
 let client: S3Client | undefined;
 

@@ -17,8 +17,8 @@ function HeroSection() {
                 <div className="sales-hero-copy sales-hero-copy-centered">
 
                     <h1 id="hero-title">
-                        Your work is strong.
-                        <span>Make the first impression match.</span>
+                        Portfolio templates.
+                        <span>Make your first impression count.</span>
                     </h1>
 
                     <p>

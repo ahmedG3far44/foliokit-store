@@ -5,7 +5,7 @@ import UploadAssetModel from "../models/upload-asset.ts";
 import { AppError } from "../utils/app-error.ts";
 import { randomUUID } from "node:crypto";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { getR2Client, isR2Configured } from "../config/r2.ts";
+import { getR2Client, getR2SigningDate, isR2Configured } from "../config/r2.ts";
 import { AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CreateMultipartUploadCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, UploadPartCommand } from "@aws-sdk/client-s3";
 
 const types = {
@@ -42,7 +42,10 @@ function generateFileName(originalName: string): string {
 }
 
 async function r2MediaUrl(bucket: string, key: string): Promise<string> {
-  return getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: env.R2_MEDIA_URL_TTL_SECONDS });
+  return getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: bucket, Key: key }), {
+    expiresIn: env.R2_MEDIA_URL_TTL_SECONDS,
+    signingDate: await getR2SigningDate(),
+  });
 }
 
 export async function serializeAsset(asset: StoredAsset) {

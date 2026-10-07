@@ -1,4 +1,4 @@
-import { GoogleLogin } from "@react-oauth/google";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -54,7 +54,7 @@ function AuthPage({ mode }: { mode: "login" | "register" }) {
       <h1 id="auth-heading">{mode === "register" ? "Create your account" : "Welcome back"}</h1>
       <p className="auth-lede">{mode === "register" ? "Start building your portfolio library." : "Sign in to continue to Foliokit."}</p>
       <div className="social-auth-actions" ref={googleButtonRef}>
-        {googleClientId ? <GoogleLogin
+        {googleClientId ? <GoogleOAuthProvider clientId={googleClientId} locale="en"><GoogleLogin
           key={googleButtonWidth}
           onSuccess={(response) => {
             if (!response.credential) return setGoogleError("Google did not return a sign-in credential");
@@ -64,7 +64,7 @@ function AuthPage({ mode }: { mode: "login" | "register" }) {
           onError={() => setGoogleError("Google sign-in could not be completed")}
           text="continue_with"
           width={String(googleButtonWidth)}
-        /> : <p className="auth-error" role="alert">Google sign-in is not configured.</p>}
+        /></GoogleOAuthProvider> : <p className="auth-error" role="alert">Google sign-in is not configured.</p>}
       </div>
       <div className="auth-divider"><span>OR</span></div>
       <form className="auth-form" onSubmit={(event) => void submit(event)}>

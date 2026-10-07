@@ -70,7 +70,7 @@ function Header() {
 
   return <header ref={headerRef} className={`site-header ${isHomePage ? "home-header" : ""}`}>
     <Logo />
-    {isReady ? <>
+    <>
 
       <nav className="main-nav" aria-label="Main navigation">
         <NavLink className={({ isActive }) => `site-nav-link ${isActive ? "active" : ""}`} to="/themes">
@@ -122,7 +122,7 @@ function Header() {
       </nav>
 
       <div className="auth-actions">
-        {!user && <>
+        {isReady && !user && <>
           <button onClick={() => navigate("/sign-in")} className="cursor-pointer hover:bg-white hover:text-brand border-brand transition text-xs font-semibold bg-brand text-white rounded-md py-1.5 px-3.5" >Login</button>
           <button onClick={() => navigate("/sign-up")} className="cursor-pointer hover:bg-brand hover:text-white hover:border-transparent transition text-xs font-semibold text-brand bg-white rounded-md py-1.5 px-3.5 border border-border-color" >Create account</button>
         </>}
@@ -184,7 +184,7 @@ function Header() {
 
           </div>
         </>}
-      </nav></> : <Skeleton />}
+      </nav></>
   </header>;
 }
 

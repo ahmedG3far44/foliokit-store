@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://foliokit.store/sitemap.xml

@@ -14,6 +14,43 @@ import { paypalDecimalToMinor, validatePaypalAmount } from "../services/paypal.s
 import { allocateDiscount, calculateDiscountMinor } from "../services/discount.service.ts";
 import { serializeAsset } from "../services/upload.service.ts";
 import { analyticsWindow } from "../services/order.service.ts";
+import { createSigningClock } from "../utils/signing-clock.ts";
+
+test("R2 signing uses storage time and shares concurrent clock checks", async () => {
+  let elapsed = 0;
+  let reads = 0;
+  const storageTime = Date.now() - 7 * 60 * 60_000;
+  const clock = createSigningClock(async () => { reads++; return storageTime; }, () => elapsed);
+  const dates = await Promise.all([clock(), clock(), clock()]);
+  assert.equal(reads, 1);
+  assert.ok(dates.every((date) => date.getTime() === storageTime));
+  elapsed = 10_000;
+  assert.equal((await clock()).getTime(), storageTime + 10_000);
+  assert.equal(reads, 1);
+});
+
+test("R2 signing retains storage time when refreshing fails and retries later", async () => {
+  let elapsed = 0;
+  let reads = 0;
+  const storageTime = Date.now() - 7 * 60 * 60_000;
+  const clock = createSigningClock(async () => {
+    if (++reads === 2) throw new Error("Temporary network failure");
+    return storageTime + elapsed;
+  }, () => elapsed);
+  await clock();
+  elapsed = 300_000;
+  assert.equal((await clock()).getTime(), storageTime + elapsed);
+  assert.equal(reads, 2);
+  elapsed += 30_000;
+  assert.equal((await clock()).getTime(), storageTime + elapsed);
+  assert.equal(reads, 3);
+});
+
+test("R2 signing falls back to local time if the initial storage date is invalid", async () => {
+  const clock = createSigningClock(async () => NaN);
+  const before = Date.now();
+  assert.ok((await clock()).getTime() >= before);
+});
 
 const validTheme = { name: "Studio Grid", slug: "studio-grid", shortDescription: "A considered portfolio for creative studios.", description: "A complete, responsive portfolio theme designed for independent creative studios.", stack: ["React"], features: ["Responsive"], priceMinor: 4900, currency: "usd", version: "1.0.0", previewUrl: "https://preview.example.com", previewAssetId: "64b64c16e3a54f0012345670", imageAssetIds: ["64b64c16e3a54f0012345678", "64b64c16e3a54f0012345677"], videoAssetIds: ["64b64c16e3a54f0012345676"], sourceAssetId: "64b64c16e3a54f0012345679", featured: false };
 
