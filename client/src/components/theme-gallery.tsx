@@ -12,6 +12,7 @@ export function ThemeGallery({ images, name }: { images: PublicAsset[]; name: st
   const [selected, setSelected] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [fillView, setFillView] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const thumbnails = useRef<HTMLDivElement>(null);
   const openButtons = useRef<Array<HTMLButtonElement | null>>([]);
@@ -80,7 +81,7 @@ export function ThemeGallery({ images, name }: { images: PublicAsset[]; name: st
         {images.map((asset, index) => <div className="gallery-slide" key={asset.id} aria-hidden={index !== active} role="group" aria-roledescription="slide" aria-label={`${index + 1} of ${count}`}>
           <button ref={(button) => { openButtons.current[index] = button; }} className="gallery-open" type="button" tabIndex={index === active ? 0 : -1} onClick={() => {
             if (swiped.current) { swiped.current = false; return; }
-            setSelected(index); setExpanded(true);
+            setSelected(index); setFillView(false); setExpanded(true);
           }} aria-label={`View ${name} image ${index + 1} full size`}>
             <GalleryImage asset={asset} alt={`${name} — screen ${index + 1}`} eager={Math.abs(index - active) <= 1} />
             
@@ -99,10 +100,10 @@ export function ThemeGallery({ images, name }: { images: PublicAsset[]; name: st
     <dialog className={`gallery-lightbox${closing ? " is-closing" : ""}`} ref={dialog} aria-labelledby={titleId} onClose={() => { setExpanded(false); openButtons.current[active]?.focus({ preventScroll: true }); }} onCancel={(event) => { event.preventDefault(); close(); }} onClick={(event) => { if (event.target === event.currentTarget) close(); }}>
       <div className="gallery-lightbox-panel">
         <header className="gallery-lightbox-header"><div><h2 id={titleId}>{name}</h2><p aria-live="polite">Screen {active + 1} of {count}</p></div><button type="button" className="gallery-lightbox-close" aria-label="Close full image preview" onClick={close} autoFocus><X size={22} /></button></header>
-        <div className="gallery-lightbox-stage" onTouchStart={startSwipe} onTouchEnd={endSwipe} onTouchCancel={() => { touchStart.current = null; }}>
+        <div className={`gallery-lightbox-stage${fillView ? " is-filled" : ""}`} onTouchStart={startSwipe} onTouchEnd={endSwipe} onTouchCancel={() => { touchStart.current = null; }}>
           {expanded && <div className="gallery-full-image" key={images[active].id}><GalleryImage asset={images[active]} alt={`${name} — full screen ${active + 1}`} eager /></div>}
         </div>
-        <footer className="gallery-lightbox-footer"><span>Use arrow keys to browse · Esc to close</span>{count > 1 && <div><button type="button" className="gallery-lightbox-control" aria-label="Previous full image" onClick={() => move(-1)}><ChevronLeft size={20} /></button><button type="button" className="gallery-lightbox-control" aria-label="Next full image" onClick={() => move(1)}><ChevronRight size={20} /></button></div>}</footer>
+        <footer className="gallery-lightbox-footer"><span><span className="gallery-desktop-hint">← → Browse · Esc Close</span><span className="gallery-mobile-hint">Swipe to browse</span></span><div><button type="button" className="gallery-lightbox-fit" aria-pressed={fillView} onClick={() => setFillView((current) => !current)}>{fillView ? "Fit image" : "Fill view"}</button>{count > 1 && <><button type="button" className="gallery-lightbox-control" aria-label="Previous full image" onClick={() => move(-1)}><ChevronLeft size={20} /></button><button type="button" className="gallery-lightbox-control" aria-label="Next full image" onClick={() => move(1)}><ChevronRight size={20} /></button></>}</div></footer>
       </div>
     </dialog>
   </div>;

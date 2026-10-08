@@ -4,7 +4,7 @@
 import Header from "../components/header";
 
 import { api } from "../lib/api";
-import { useEffect } from "react";
+import { useEffect, type MouseEvent } from "react";
 import { money } from "../lib/format";
 import { ErrorState } from "./error/error";
 import { useAsync } from "../hooks/use-async";
@@ -39,6 +39,18 @@ export default function ThemeDetailPage() {
     retryLabel="Reload theme"
   />
   const theme = request.data;
+  const scrollToSection = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const hash = event.currentTarget.hash;
+    const section = document.getElementById(hash.slice(1));
+    if (!section) return;
+    event.preventDefault();
+    if (window.location.hash !== hash) window.history.pushState(window.history.state, "", hash);
+    section.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      block: "start",
+    });
+  };
 
   return <div className="store-page"><Seo title={`${theme.name} | Portfolio Template | Folio Kit`} description={theme.description} /><Header /><main className="detail-page">
 
@@ -87,12 +99,12 @@ export default function ThemeDetailPage() {
 
 
     <nav className="detail-section-nav" aria-label="Theme details">
-      <a href="#features">Features</a>
-      {theme.images.length > 0 && <a href="#gallery">Gallery ({theme.images.length})</a>}
-      {theme.videos.length > 0 && <a href="#tutorials">Tutorials ({theme.videos.length})</a>}
-      {theme.setupInstructions && <a href="#setup">Setup</a>}
-      {theme.deployInstructions && <a href="#deployment">Deployment</a>}
-      {theme.changelog && <a href="#changelog">Changelog</a>}
+      <a href="#features" onClick={scrollToSection}>Features</a>
+      {theme.images.length > 0 && <a href="#gallery" onClick={scrollToSection}>Gallery ({theme.images.length})</a>}
+      {theme.videos.length > 0 && <a href="#tutorials" onClick={scrollToSection}>Tutorials ({theme.videos.length})</a>}
+      {theme.setupInstructions && <a href="#setup" onClick={scrollToSection}>Setup</a>}
+      {theme.deployInstructions && <a href="#deployment" onClick={scrollToSection}>Deployment</a>}
+      {theme.changelog && <a href="#changelog" onClick={scrollToSection}>Changelog</a>}
     </nav>
 
     <section className="detail-info" id="features">
