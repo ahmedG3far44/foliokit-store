@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { ArrowUpRight, CheckCircle2, ImagePlus, Save, UploadCloud, X } from "lucide-react";
 import type { CategoryType, PublicAsset } from "../../lib/types";
 import { api, ApiError } from "../../lib/api";
-import { uploadAsset } from "../../lib/upload-asset";
+import { fileSize } from "../../lib/format";
+import { uploadAsset, type UploadTransfer } from "../../lib/upload-asset";
 import { useAsync } from "../../hooks/use-async";
 import { PageHeader } from "../../components/admin/page-header";
 import { ErrorMessage } from "../../components/ui/error-message";
@@ -21,7 +22,7 @@ function validate(fields: typeof blank, image?: PublicAsset): FieldErrors {
   const errors: FieldErrors = {};
   if (fields.name.trim().length < 2) errors.name = "Enter a category name with at least 2 characters.";
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(fields.slug.trim()) || fields.slug.trim().length < 2) errors.slug = "Use at least 2 lowercase letters or numbers, separated by hyphens.";
-  if (fields.description.trim().length < 10) errors.description = "Describe this category in at least 10 characters.";
+  if (fields.description.length > 2000) errors.description = "Keep the description under 2,000 characters.";
   if (!Number.isInteger(fields.sortOrder) || fields.sortOrder < 0 || fields.sortOrder > 10000) errors.sortOrder = "Enter a whole number between 0 and 10,000.";
   if (!image && !fields.imageUrl.trim()) errors.image = "Upload a category image or enter an image URL.";
   if (fields.imageUrl.trim()) {
@@ -65,6 +66,7 @@ export default function AdminCategoriesPage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [transfer, setTransfer] = useState<UploadTransfer>({ uploadedBytes: 0, totalBytes: 0 });
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -100,9 +102,9 @@ export default function AdminCategoriesPage() {
     if (!file || busy || operationLock.current) return;
     clearFieldErrors("image", "imageUrl");
     if (!["image/jpeg", "image/png", "image/webp", "image/avif"].includes(file.type) || file.size <= 0 || file.size > 10 * 1024 * 1024) { setErrors((current) => ({ ...current, image: "Choose a JPG, PNG, WebP, or AVIF image up to 10 MB." })); return; }
-    operationLock.current = true; setUploading(true); setProgress(0); setPhase("Preparing image");
+    operationLock.current = true; setUploading(true); setProgress(0); setTransfer({ uploadedBytes: 0, totalBytes: file.size }); setPhase("Preparing image");
     try {
-      const asset = await uploadAsset(file, "image", (value, label) => { setProgress(value); setPhase(label); });
+      const asset = await uploadAsset(file, "image", (value, label, transfer) => { setProgress(value); setPhase(label); setTransfer(transfer); });
       if (asset.status !== "ready") throw new Error("The image is not ready. Please retry the upload.");
       setImage(asset); setFields((current) => ({ ...current, imageUrl: "" }));
     } catch (error) { setErrors((current) => ({ ...current, image: error instanceof Error ? error.message : "Image upload failed. Please try again." })); }
@@ -125,7 +127,7 @@ export default function AdminCategoriesPage() {
         <div className="category-details-grid">
           <div className="category-form-field"><label htmlFor="category-name">Category name <span>Required</span></label><input {...propsFor("name")} readOnly={busy} required minLength={2} maxLength={100} placeholder="e.g. Creatives" value={fields.name} onChange={(event) => { setFields({ ...fields, name: event.target.value, slug: id ? fields.slug : slugFromName(event.target.value) }); clearFieldErrors("name", ...(!id ? ["slug" as const] : [])); }} /><small id="category-name-hint">The name visitors will see on the category card.</small><FieldError field="name" errors={errors} /></div>
           <div className="category-form-field"><label htmlFor="category-slug">URL slug <span>Required</span></label><input {...propsFor("slug")} readOnly={busy} required minLength={2} maxLength={100} placeholder="e.g. creatives" value={fields.slug} onChange={(event) => { setFields({ ...fields, slug: event.target.value }); clearFieldErrors("slug"); }} /><small id="category-slug-hint">/themes/{fields.slug || "category-name"}</small><FieldError field="slug" errors={errors} /></div>
-          <div className="category-form-field category-field-full"><label htmlFor="category-description">Description <span>Required</span></label><textarea {...propsFor("description")} readOnly={busy} required minLength={10} maxLength={2000} rows={5} placeholder="Describe who these themes are for and what makes them a good fit…" value={fields.description} onChange={(event) => { setFields({ ...fields, description: event.target.value }); clearFieldErrors("description"); }} /><div className="category-field-meta"><small id="category-description-hint">A short introduction shown on the card and category page.</small><small>{fields.description.length}/2,000</small></div><FieldError field="description" errors={errors} /></div>
+          <div className="category-form-field category-field-full"><label htmlFor="category-description">Description <span>Optional</span></label><textarea {...propsFor("description")} readOnly={busy} maxLength={2000} rows={5} placeholder="Optionally describe who these themes are for…" value={fields.description} onChange={(event) => { setFields({ ...fields, description: event.target.value }); clearFieldErrors("description"); }} /><div className="category-field-meta"><small id="category-description-hint">Add a short introduction, or leave this field blank.</small><small>{fields.description.length}/2,000</small></div><FieldError field="description" errors={errors} /></div>
           <div className="category-form-field"><label htmlFor="category-sortOrder">Display order</label><input {...propsFor("sortOrder")} readOnly={busy} type="number" required min={0} max={10000} step={1} placeholder="e.g. 0" value={fields.sortOrder} onChange={(event) => { setFields({ ...fields, sortOrder: Number(event.target.value) }); clearFieldErrors("sortOrder"); }} /><small id="category-sortOrder-hint">Lower numbers appear first on the homepage.</small><FieldError field="sortOrder" errors={errors} /></div>
         </div>
         <div className="category-media-panel">
@@ -137,8 +139,8 @@ export default function AdminCategoriesPage() {
           <input ref={fileInput} className="asset-file-input" type="file" disabled={busy} accept="image/jpeg,image/png,image/webp,image/avif" aria-label="Choose category cover image" onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ""; }} />
           <small id="category-image-hint" className="category-image-hint">Landscape images work best. Your image fills the category card.</small>
           <FieldError field="image" errors={errors} />
-          {uploading && <div className="category-upload-progress" role="status"><div><UploadCloud size={16} aria-hidden="true" /><span>{phase}</span><strong>{progress}%</strong></div><progress value={progress} max={100} aria-label="Category image upload progress" /></div>}
-          {image && !uploading && <div className="category-image-ready"><CheckCircle2 size={16} aria-hidden="true" /><span>{image.originalName}</span><button type="button" disabled={busy} aria-label="Remove cover image" onClick={() => { setImage(undefined); clearFieldErrors("image"); }}><X size={16} /></button></div>}
+          {uploading && <div className="category-upload-progress" role="status"><div><UploadCloud size={16} aria-hidden="true" /><span>{phase}</span><strong>{progress}%</strong></div><progress value={progress} max={100} aria-label="Category image upload progress" /><small className="category-upload-size">{fileSize(transfer.uploadedBytes)} / {fileSize(transfer.totalBytes)} uploaded</small></div>}
+          {image && !uploading && <div className="category-image-ready"><CheckCircle2 size={16} aria-hidden="true" /><span title={image.originalName}>{image.originalName}</span><small className="category-file-size">{fileSize(image.sizeBytes)}</small><button type="button" disabled={busy} aria-label="Remove cover image" onClick={() => { setImage(undefined); clearFieldErrors("image"); }}><X size={16} /></button></div>}
           <div className="category-image-divider"><span>or use a link</span></div>
           <div className="category-form-field"><label htmlFor="category-imageUrl">Image URL</label><input {...propsFor("imageUrl")} readOnly={busy} type="url" placeholder="https://example.com/category.jpg" value={fields.imageUrl} onChange={(event) => { setImage(undefined); setFields({ ...fields, imageUrl: event.target.value }); clearFieldErrors("imageUrl", "image"); }} /><small id="category-imageUrl-hint">Paste a direct link to a publicly accessible HTTPS image.</small><FieldError field="imageUrl" errors={errors} /></div>
         </div>
@@ -149,7 +151,7 @@ export default function AdminCategoriesPage() {
     {!list.isLoading && !list.error && list.data?.length === 0 && <p className="catalog-empty">No categories yet. Add your first category above.</p>}
     <div className="category-grid admin-category-grid">{list.data?.map((category) => <article key={category.id} className="category-card">
       <FallbackImage src={category.image?.url ?? category.imageUrl} alt="" loading="eager" loadTimeoutMs={12_000} />
-      <div><h3>{category.name}</h3><p>{category.description}</p><Link to={`/themes/${category.slug}`}>View themes <ArrowUpRight size={14} aria-hidden="true" /></Link><div className="category-actions"><button className="secondary-button" disabled={busy} onClick={() => { setId(category.id); setFields({ name: category.name, slug: category.slug, description: category.description, imageUrl: category.imageUrl ?? "", sortOrder: category.sortOrder }); setImage(category.image); setErrors({}); mutation.clearError(); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Edit</button><button className="secondary-button" disabled={busy} onClick={() => void remove(category)}>Delete</button></div></div>
+      <div><h3>{category.name}</h3>{category.description && <p>{category.description}</p>}<Link to={`/themes/${category.slug}`}>View themes <ArrowUpRight size={14} aria-hidden="true" /></Link><div className="category-actions"><button className="secondary-button" disabled={busy} onClick={() => { setId(category.id); setFields({ name: category.name, slug: category.slug, description: category.description ?? "", imageUrl: category.imageUrl ?? "", sortOrder: category.sortOrder }); setImage(category.image); setErrors({}); mutation.clearError(); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Edit</button><button className="secondary-button" disabled={busy} onClick={() => void remove(category)}>Delete</button></div></div>
     </article>)}</div>
   </main>;
 }

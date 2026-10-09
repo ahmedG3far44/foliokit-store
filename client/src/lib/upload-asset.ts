@@ -1,6 +1,7 @@
 import type { PublicAsset, AssetKind } from "./types";
 import { api } from "./api";
 type UploadKind = AssetKind;
+export type UploadTransfer = { uploadedBytes: number; totalBytes: number };
 function fileContentType(file: File, kind: UploadKind): string {
   if (file.type) return file.type;
   const extension = file.name.toLowerCase().split(".").pop();
@@ -11,10 +12,12 @@ function fileContentType(file: File, kind: UploadKind): string {
   return extension && byExtension[extension] ? byExtension[extension] : kind === "theme_zip" ? "application/zip" : "application/octet-stream";
 }
 
-export async function uploadAsset(file: File, kind: UploadKind, update: (progress: number, phase: string) => void): Promise<PublicAsset> {
+export async function uploadAsset(file: File, kind: UploadKind, update: (progress: number, phase: string, transfer: UploadTransfer) => void): Promise<PublicAsset> {
   let assetId: string | undefined;
+  let uploadedBytes = 0;
+  const report = (progress: number, phase: string) => update(progress, phase, { uploadedBytes, totalBytes: file.size });
   try {
-    update(5, "Preparing upload");
+    report(5, "Preparing upload");
     const init = await api.post<{ asset: PublicAsset; uploadId: string; partSizeBytes: number }>("/admin/uploads/initiate", {
       kind, originalName: file.name,
       contentType: fileContentType(file, kind),
@@ -26,16 +29,17 @@ export async function uploadAsset(file: File, kind: UploadKind, update: (progres
 
     for (let index = 0; index < count; index++) {
       const partNumber = index + 1;
-      update(10 + Math.round(index / count * 80), count > 1 ? `Uploading part ${partNumber} of ${count}` : "Uploading to Cloudflare R2");
+      report(10 + Math.round(index / count * 80), count > 1 ? `Uploading part ${partNumber} of ${count}` : "Uploading to Cloudflare R2");
       const part = file.slice(index * init.partSizeBytes, Math.min(file.size, (index + 1) * init.partSizeBytes));
       const { ETag } = await api.uploadPart(`/admin/uploads/${assetId}/parts/${partNumber}`, part);
       parts.push({ ETag, PartNumber: partNumber });
-      update(10 + Math.round(partNumber / count * 80), count > 1 ? `Uploaded part ${partNumber} of ${count}` : "Upload transferred");
+      uploadedBytes += part.size;
+      report(10 + Math.round(partNumber / count * 80), count > 1 ? `Uploaded part ${partNumber} of ${count}` : "Upload transferred");
     }
 
-    update(95, kind === "image" ? "Optimizing image" : "Verifying upload");
+    report(95, kind === "image" ? "Optimizing image" : "Verifying upload");
     const asset = await api.post<PublicAsset>(`/admin/uploads/${assetId}/complete`, { parts });
-    update(100, "Upload complete");
+    report(100, "Upload complete");
     return asset;
   } catch (error) {
     if (assetId) await api.delete(`/admin/uploads/${assetId}`).catch(() => undefined);

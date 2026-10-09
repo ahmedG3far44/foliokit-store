@@ -1,4 +1,5 @@
-import { uploadAsset } from "../../lib/upload-asset";
+import { fileSize } from "../../lib/format";
+import { uploadAsset, type UploadTransfer } from "../../lib/upload-asset";
 /* useAsync.run is stable across renders. */
 /* oxlint-disable react-hooks/exhaustive-deps */
 import type { CategoryType, PublicAsset, ThemeType } from "../../lib/types";
@@ -27,7 +28,7 @@ type UploadKind = "image" | "video" | "theme_zip";
 type ErrorKey = keyof Fields | "previewAssets" | "galleryAssets" | "tutorialAssets" | "sourceAsset";
 type UploadRole = "preview" | "gallery" | "tutorial" | "source";
 type FormErrors = Partial<Record<ErrorKey, string>>;
-type UploadState = { kind: UploadKind; label: string; progress: number; phase: string };
+type UploadState = UploadTransfer & { kind: UploadKind; label: string; progress: number; phase: string };
 
 const uploadRules: Record<UploadKind, { types: string[]; maxBytes: number; description: string }> = {
   image: { types: ["image/jpeg", "image/png", "image/webp", "image/avif"], maxBytes: 10 * 1024 * 1024, description: "JPG, PNG, WebP or AVIF up to 10 MB" },
@@ -143,7 +144,7 @@ function mapServerErrors(error: unknown): FormErrors {
 }
 
 function UploadProgress({ upload }: { upload: UploadState }) {
-  return <div className="upload-progress" aria-live="polite"><div><UploadCloud size={16} /><span><strong>{upload.label}</strong><small>{upload.phase}</small></span><b>{upload.progress}%</b></div><progress value={upload.progress} max="100" aria-label={`${upload.label} upload progress`} /></div>;
+  return <div className="upload-progress" aria-live="polite"><div><UploadCloud size={16} /><span><strong>{upload.label}</strong><small>{upload.phase}</small><small>{fileSize(upload.uploadedBytes)} / {fileSize(upload.totalBytes)} uploaded</small></span><b>{upload.progress}%</b></div><progress value={upload.progress} max="100" aria-label={`${upload.label} upload progress`} /></div>;
 }
 
 export default function AdminThemeEditorPage() {
@@ -194,8 +195,8 @@ export default function AdminThemeEditorPage() {
     try {
       for (const file of files) {
         const kind = kindFor(file);
-        setUploading({ kind, label: file.name, progress: 0, phase: "Starting" });
-        const asset = await uploadAsset(file, kind, (progress, phase) => setUploading({ kind, label: file.name, progress, phase }));
+        setUploading({ kind, label: file.name, progress: 0, phase: "Starting", uploadedBytes: 0, totalBytes: file.size });
+        const asset = await uploadAsset(file, kind, (progress, phase, transfer) => setUploading({ kind, label: file.name, progress, phase, ...transfer }));
         if (asset.status !== "ready") throw new Error(`${file.name} could not be processed. Please retry`);
         if (role === "preview") setPreview(asset);
         else if (role === "gallery") setImages((items) => [...items, asset]);
@@ -285,25 +286,25 @@ export default function AdminThemeEditorPage() {
           <div className={`asset-requirement ${previewReady ? "met" : ""}`}><CheckCircle2 size={16} /><span>Card preview</span><b>{preview ? 1 : 0} / 1</b></div>
           <button type="button" disabled={busy} className={`upload-drop ${errors.previewAssets ? "invalid" : ""}`} {...fieldErrorProps("previewAssets", errors)} onClick={() => previewInputRef.current?.click()}><Film size={18} /><strong className="text-xs">{preview ? "Replace preview" : "Upload preview"}</strong><span className="text-xs">Images or GIF up to 10 MB · MP4 or WebM up to 250 MB</span></button>
           <input ref={previewInputRef} className="asset-file-input" disabled={busy} type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,video/mp4,video/webm" onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void selectFiles(files, "preview"); }} />
-          {preview && <div className="asset-row"><span><ThemeMedia asset={preview} alt="Card preview" preview /></span><div><strong className="text-xs">{preview.originalName}</strong><small>Card thumbnail · {preview.status}</small></div><button type="button" disabled={busy} onClick={() => setPreview(undefined)}>Remove</button></div>}
+          {preview && <div className="asset-row"><span><ThemeMedia asset={preview} alt="Card preview" preview /></span><div><strong className="text-xs">{preview.originalName}</strong><small>Card thumbnail · {fileSize(preview.sizeBytes)} · {preview.status}</small></div><button type="button" disabled={busy} onClick={() => setPreview(undefined)}>Remove</button></div>}
           <FieldError name="previewAssets" errors={errors} />
 
           <div className={`asset-requirement source-requirement ${galleryReady ? "met" : ""}`}><CheckCircle2 size={16} /><span>Theme images</span><b>{images.length} / 10</b></div>
           <button type="button" disabled={busy || images.length >= 10} className={`upload-drop ${errors.galleryAssets ? "invalid" : ""}`} {...fieldErrorProps("galleryAssets", errors)} onClick={() => imageInputRef.current?.click()}><ImagePlus size={18} /><strong className="text-xs">Add gallery images · minimum 2</strong><span className="text-xs">{uploadRules.image.description} each</span></button>
           <input ref={imageInputRef} className="asset-file-input" disabled={busy} type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void selectFiles(files, "gallery"); }} />
-          {images.map((asset, index) => <div className="asset-row" key={asset.id}><span><ThemeMedia asset={asset} alt={`Gallery image ${index + 1}`} /></span><div><strong className="text-xs">{asset.originalName}</strong><small>Image {index + 1} · {asset.status}</small></div><button type="button" disabled={busy} aria-label={`Remove gallery image ${index + 1}`} onClick={() => { setImages((items) => items.filter((item) => item.id !== asset.id)); clearError("galleryAssets"); }}>Remove</button></div>)}
+          {images.map((asset, index) => <div className="asset-row" key={asset.id}><span><ThemeMedia asset={asset} alt={`Gallery image ${index + 1}`} /></span><div><strong className="text-xs">{asset.originalName}</strong><small>Image {index + 1} · {fileSize(asset.sizeBytes)} · {asset.status}</small></div><button type="button" disabled={busy} aria-label={`Remove gallery image ${index + 1}`} onClick={() => { setImages((items) => items.filter((item) => item.id !== asset.id)); clearError("galleryAssets"); }}>Remove</button></div>)}
           <FieldError name="galleryAssets" errors={errors} />
 
           <div className={`asset-requirement source-requirement ${tutorialsReady ? "met" : ""}`}><CheckCircle2 size={16} /><span>Tutorial videos</span><b>{videos.length} / 2</b></div>
           <button type="button" disabled={busy || videos.length >= 2} className={`upload-drop source ${errors.tutorialAssets ? "invalid" : ""}`} {...fieldErrorProps("tutorialAssets", errors)} onClick={() => videoInputRef.current?.click()}><Film size={18} /><strong className="text-xs">Add tutorials · minimum 1</strong><span className="text-xs">Setup, deployment, or editing · {uploadRules.video.description}</span></button>
           <input ref={videoInputRef} className="asset-file-input" disabled={busy} type="file" multiple accept="video/mp4,video/webm" onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void selectFiles(files, "tutorial"); }} />
-          {videos.map((asset, index) => <div className="asset-row" key={asset.id}><span><Film size={18} /></span><div><strong className="text-xs">{asset.originalName}</strong><small>Tutorial {index + 1} · {asset.status}</small></div><button type="button" disabled={busy} aria-label={`Remove tutorial ${index + 1}`} onClick={() => { setVideos((items) => items.filter((item) => item.id !== asset.id)); clearError("tutorialAssets"); }}>Remove</button></div>)}
+          {videos.map((asset, index) => <div className="asset-row" key={asset.id}><span><Film size={18} /></span><div><strong className="text-xs">{asset.originalName}</strong><small>Tutorial {index + 1} · {fileSize(asset.sizeBytes)} · {asset.status}</small></div><button type="button" disabled={busy} aria-label={`Remove tutorial ${index + 1}`} onClick={() => { setVideos((items) => items.filter((item) => item.id !== asset.id)); clearError("tutorialAssets"); }}>Remove</button></div>)}
           <FieldError name="tutorialAssets" errors={errors} />
 
           <div className={`asset-requirement source-requirement ${source?.status === "ready" ? "met" : ""}`}><CheckCircle2 size={16} /><span>Theme source package</span><b>Required</b></div>
           <button type="button" disabled={busy} className={`upload-drop source ${errors.sourceAsset ? "invalid" : ""}`} {...fieldErrorProps("sourceAsset", errors)} onClick={() => sourceInputRef.current?.click()}><FileArchive size={18} /><strong className="text-xs">{source ? "Replace source ZIP" : "Upload source ZIP"}</strong><span className="text-xs">{source?.originalName ?? uploadRules.theme_zip.description}</span></button>
           <input ref={sourceInputRef} className="asset-file-input" disabled={busy} type="file" accept=".zip,application/zip,application/x-zip,application/x-zip-compressed" onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; void selectFiles(file ? [file] : [], "source"); }} />
-          {source && <div className="asset-row source-file"><span><FileArchive /></span><div><strong className="text-xs">{source.originalName}</strong><small>{source.status}</small></div><button type="button" disabled={busy} onClick={() => { setSource(undefined); setErrors((current) => ({ ...current, sourceAsset: "Upload the required source ZIP file" })); }}>Remove</button></div>}
+          {source && <div className="asset-row source-file"><span><FileArchive /></span><div><strong className="text-xs">{source.originalName}</strong><small>{fileSize(source.sizeBytes)} · {source.status}</small></div><button type="button" disabled={busy} onClick={() => { setSource(undefined); setErrors((current) => ({ ...current, sourceAsset: "Upload the required source ZIP file" })); }}>Remove</button></div>}
           <FieldError name="sourceAsset" errors={errors} />
         </div>
 

@@ -44,23 +44,26 @@ export function CategoryCards() {
         </>
       )}
 
-      <div className="category-grid">
+      <div className="theme-grid">
         {isLoading && !data
-          ? [1, 2, 3, 4].map((id) => (
-              <Skeleton key={id} className="category-card-skeleton" />
+          ? [1, 2, 3].map((id) => (
+              <Skeleton key={id} className="aspect-[6/5] w-full rounded-2xl" />
             ))
           : data?.map((category) => (
               <Link
-                className="rounded-xl"
+                className="group block min-w-0 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
                 key={category.id}
                 to={`/themes/${category.slug}`}
               >
-                <FallbackImage
-                  src={category.image?.url ?? category.imageUrl}
-                  alt=""
-                  loading="eager"
-                  loadTimeoutMs={12_000}
-                />
+                <div className="relative aspect-[6/5] w-full overflow-hidden rounded-2xl">
+                  <FallbackImage
+                    src={category.image?.url ?? category.imageUrl}
+                    alt=""
+                    loading="eager"
+                    loadTimeoutMs={12_000}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:transform-none"
+                  />
+                </div>
                 <h3 className="text-lg my-4 text-center">{category.name}</h3>
               </Link>
             ))}

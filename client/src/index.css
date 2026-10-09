@@ -8177,3 +8177,6 @@ tbody tr:hover {
 .admin-category-grid .category-card a { display: inline-flex; align-items: center; gap: 4px; }
 @media (max-width: 1100px) { .category-form-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; } .category-media-panel { max-width: 100%; } }
 @media (max-width: 600px) { .category-details-grid { grid-template-columns: minmax(0, 1fr); } .category-editor-heading { flex-direction: column; gap: 10px; } .category-form-footer { align-items: stretch; flex-direction: column; } .category-form-footer .category-actions { flex-wrap: wrap; } .category-form-footer .primary-button { flex: 1; justify-content: center; } .category-field-meta { flex-direction: column; gap: 4px; } }
+
+.category-upload-size { display: block; margin-top: 6px; color: var(--muted); font-size: .7rem; font-variant-numeric: tabular-nums; }
+.category-image-ready .category-file-size { flex-shrink: 0; color: var(--muted); font-size: .7rem; font-variant-numeric: tabular-nums; }

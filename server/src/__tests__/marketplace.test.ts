@@ -445,3 +445,12 @@ test("theme search combines keywords across name, stack, descriptions, features,
   assert.ok(single.$and![0]!.$or!.some((clause) => "features" in clause));
   assert.deepEqual(themeSearchFilter([]), {});
 });
+
+
+test("category descriptions are optional and can be cleared", () => {
+  const category = { name: "Creatives", slug: "creatives", imageUrl: "https://example.com/category.jpg" };
+  assert.equal(categoryInputSchema.parse(category).description, "");
+  assert.equal(categoryInputSchema.parse({ ...category, description: "   " }).description, "");
+  assert.equal(categoryInputSchema.parse({ ...category, description: "Art" }).description, "Art");
+  assert.equal(categoryInputSchema.safeParse({ ...category, description: "x".repeat(2001) }).success, false);
+});

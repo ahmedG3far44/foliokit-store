@@ -8,7 +8,7 @@ export async function listCategories() {
   const categories = await CategoryModel.find().sort({ sortOrder: 1, name: 1 }).lean();
   return Promise.all(categories.map(async (category) => {
     const asset = category.imageAssetId ? await UploadAssetModel.findOne({ _id: category.imageAssetId, kind: "image", status: "ready" }).select("+bucket +key +variants.key").lean() : null;
-    return { id: String(category._id), name: category.name, slug: category.slug, description: category.description, imageUrl: category.imageUrl, imageAssetId: category.imageAssetId ? String(category.imageAssetId) : undefined, image: asset ? await serializeAsset(asset) : undefined, sortOrder: category.sortOrder };
+    return { id: String(category._id), name: category.name, slug: category.slug, description: category.description ?? "", imageUrl: category.imageUrl, imageAssetId: category.imageAssetId ? String(category.imageAssetId) : undefined, image: asset ? await serializeAsset(asset) : undefined, sortOrder: category.sortOrder };
   }));
 }
 

@@ -10,7 +10,7 @@ const httpsUrl = z.string().url().refine((value) => {
 
 export const categoryInputSchema = z.object({
   name: z.string().trim().min(2).max(100), slug,
-  description: z.string().trim().min(10).max(2000),
+  description: z.string().trim().max(2000).default(""),
   imageUrl: httpsUrl.optional(), imageAssetId: objectId.optional(),
   sortOrder: z.number().int().min(0).max(10000).default(0),
 }).strict().refine((value) => Boolean(value.imageUrl || value.imageAssetId), "Add a category image");
