@@ -1,12 +1,15 @@
 import env from "./config/env.ts";
 import UserModel from "./models/user.ts";
+import CategoryModel from "./models/category.ts";
 import ThemeModel from "./models/theme.ts";
 import UploadAssetModel from "./models/upload-asset.ts";
 
-import { getR2Client } from "./config/r2.ts";
+import { seedImage, seedTemplateZip, seedTutorialMp4 } from "./utils/seed-assets.ts";
+import { assertR2Configured, getR2Client } from "./config/r2.ts";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { connectDatabase, disconnectDatabase } from "./config/database.ts";
 import bcrypt from "bcryptjs";
+import type { Types } from "mongoose";
 
 const seedThemes = [
   { name: "Aurora Studio", slug: "aurora-studio", color: "172033", accent: "F4B942", stack: ["React", "TypeScript", "Tailwind CSS"], priceMinor: 4900, shortDescription: "A luminous portfolio theme for independent design studios.", description: "A polished, responsive studio portfolio with project stories, services, testimonials, and a conversion-focused contact experience.", features: ["Responsive project grid", "Case study layouts", "Accessible navigation", "Dark mode"], featured: true },
@@ -17,47 +20,13 @@ const seedThemes = [
   { name: "Field Notes", slug: "field-notes", color: "263A29", accent: "D8C4B6", stack: ["Next.js", "MDX", "TypeScript"], priceMinor: 4500, shortDescription: "A warm personal site for makers, writers, and researchers.", description: "A flexible personal website that brings projects, essays, notes, and an about page together in a quiet and approachable system.", features: ["Project archive", "Notes feed", "Writing templates", "Theme toggle"], featured: false },
 ] as const;
 
-function crc32(data: Buffer): number {
-  let crc = 0xffffffff;
-  for (const byte of data) {
-    crc ^= byte;
-    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function createDemoZip(themeName: string): Buffer {
-  const filename = Buffer.from("README.md");
-  const data = Buffer.from(`# ${themeName}\n\nThis is seeded demonstration content. Replace this archive with the complete production theme package before accepting real purchases.\n`);
-  const checksum = crc32(data);
-  const local = Buffer.alloc(30);
-  local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(20, 4); local.writeUInt32LE(checksum, 14);
-  local.writeUInt32LE(data.length, 18); local.writeUInt32LE(data.length, 22); local.writeUInt16LE(filename.length, 26);
-  const central = Buffer.alloc(46);
-  central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(20, 4); central.writeUInt16LE(20, 6); central.writeUInt32LE(checksum, 16);
-  central.writeUInt32LE(data.length, 20); central.writeUInt32LE(data.length, 24); central.writeUInt16LE(filename.length, 28);
-  const centralOffset = local.length + filename.length + data.length;
-  const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10);
-  end.writeUInt32LE(central.length + filename.length, 12); end.writeUInt32LE(centralOffset, 16);
-  return Buffer.concat([local, filename, data, central, filename, end]);
-}
-
-async function seedSourceAsset(adminId: unknown, theme: (typeof seedThemes)[number]) {
-  if (!env.R2_BUCKET) return undefined;
-  const key = `seed/theme-sources/${theme.slug}.zip`;
-  const body = createDemoZip(theme.name);
-  try {
-    await getR2Client().send(new PutObjectCommand({ Bucket: env.R2_BUCKET, Key: key, Body: body, ContentType: "application/zip", CacheControl: "private, no-store" }));
-    return UploadAssetModel.findOneAndUpdate(
-      { key },
-      { $set: { kind: "theme_zip", status: "ready", bucket: env.R2_BUCKET, originalName: `${theme.slug}-demo.zip`, contentType: "application/zip", sizeBytes: body.length, variants: [], uploadedBy: adminId }, $unset: { externalUrl: 1, errorCode: 1 } },
-      { upsert: true, returnDocument: "after", runValidators: true },
-    );
-  } catch (error) {
-    console.warn(`Could not upload the demo source ZIP for ${theme.name}:`, error instanceof Error ? error.message : error);
-    return undefined;
-  }
+async function seedAsset(adminId: unknown, key: string, body: Buffer, kind: "image" | "video" | "theme_zip", contentType: string) {
+  await getR2Client().send(new PutObjectCommand({ Bucket: env.R2_BUCKET, Key: key, Body: body, ContentType: contentType, CacheControl: kind === "theme_zip" ? "private, no-store" : "public, max-age=3600" }), { abortSignal: AbortSignal.timeout(60_000) });
+  return UploadAssetModel.findOneAndUpdate(
+    { key },
+    { $set: { kind, status: "ready", bucket: env.R2_BUCKET, originalName: key.split("/").pop(), contentType, sizeBytes: body.length, variants: [], uploadedBy: adminId }, $unset: { externalUrl: 1, errorCode: 1 } },
+    { upsert: true, returnDocument: "after", runValidators: true },
+  );
 }
 
 async function seed() {
@@ -65,29 +34,57 @@ async function seed() {
   if (!env.ADMIN_PASSWORD || env.ADMIN_PASSWORD.length < 12 || !/[a-z]/.test(env.ADMIN_PASSWORD) || !/[A-Z]/.test(env.ADMIN_PASSWORD) || !/\d/.test(env.ADMIN_PASSWORD)) {
     throw new Error("ADMIN_PASSWORD must be at least 12 characters and include uppercase, lowercase, and a number");
   }
+  assertR2Configured();
+  const tutorialBody = await seedTutorialMp4();
   await connectDatabase();
   const name = env.ADMIN_NAME || "System Admin";
   const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
   const admin = await UserModel.findOneAndUpdate({ email }, { $set: { email, name, role: "admin", status: "active", joinedAt: new Date(), provider: "email", emailVerified: true, passwordHash }, $setOnInsert: { welcomeEmailState: "sent" }, $unset: { blockedAt: 1, blockedBy: 1, deletedAt: 1 } }, { returnDocument: "after", upsert: true, runValidators: true });
   console.log(`Admin login ready for ${admin.email}.`);
+  const categorySeeds = [
+    { name: "Creatives", slug: "creatives", description: "Expressive portfolios for designers, artists, and independent creators.", imageUrl: "https://placehold.co/800x600/172033/F4B942?text=Creatives" },
+    { name: "Agencies", slug: "agencies", description: "Professional websites for studios, agencies, and service teams.", imageUrl: "https://placehold.co/800x600/3B0D54/FF6B6B?text=Agencies" },
+    { name: "Developer's", slug: "developers", description: "Personal portfolios and software websites built for developers.", imageUrl: "https://placehold.co/800x600/102A43/5BC0EB?text=Developers" },
+    { name: "E-commerce", slug: "e-commerce", description: "Considered storefronts for products, collections, and brands.", imageUrl: "https://placehold.co/800x600/2B1B17/F2D0A4?text=E-commerce" },
+  ];
+  const categoryIds = new Map<string, unknown>();
+  for (const [sortOrder, category] of categorySeeds.entries()) {
+    const image = await seedAsset(admin._id, `seed/categories/${category.slug}.png`, await seedImage({ ...category, color: "172033", accent: "F4B942", shortDescription: category.description }, "preview"), "image", "image/png");
+    const saved = await CategoryModel.findOneAndUpdate({ slug: category.slug }, { $setOnInsert: { name: category.name, slug: category.slug, description: category.description, imageAssetId: image._id, sortOrder } }, { upsert: true, returnDocument: "after", runValidators: true });
+    // Migrate the old remote placeholders without replacing admin images.
+    await CategoryModel.updateOne({ _id: saved._id, imageUrl: category.imageUrl, imageAssetId: { $exists: false } }, { $set: { imageAssetId: image._id }, $unset: { imageUrl: 1 } });
+    categoryIds.set(category.slug, saved._id);
+  }
+  const themeCategories: Record<string, string> = { "aurora-studio": "creatives", "northstar-saas": "developers", "canvas-commerce": "e-commerce", "mono-journal": "creatives", "signal-agency": "agencies", "field-notes": "developers" };
+  console.log(`${categorySeeds.length} categories ready.`);
   for (const theme of seedThemes) {
-    const imageUrl = `https://placehold.co/1200x800/${theme.color}/${theme.accent}?text=${encodeURIComponent(theme.name)}`;
-    const asset = await UploadAssetModel.findOneAndUpdate(
-      { key: `seed/placeholders/${theme.slug}.jpg` },
-      { $set: { kind: "image", status: "ready", bucket: "external-placeholder", originalName: `${theme.slug}.jpg`, contentType: "image/jpeg", sizeBytes: 1, variants: [], externalUrl: imageUrl, uploadedBy: admin._id } },
-      { upsert: true, returnDocument: "after", runValidators: true },
-    );
-    const source = await seedSourceAsset(admin._id, theme);
+    const [home, projects, preview, tutorial, source] = await Promise.all([
+      seedImage(theme, "home").then((body) => seedAsset(admin._id, `seed/theme-media/${theme.slug}/home.png`, body, "image", "image/png")),
+      seedImage(theme, "projects").then((body) => seedAsset(admin._id, `seed/theme-media/${theme.slug}/projects.png`, body, "image", "image/png")),
+      seedImage(theme, "preview").then((body) => seedAsset(admin._id, `seed/theme-media/${theme.slug}/preview.png`, body, "image", "image/png")),
+      seedAsset(admin._id, `seed/theme-media/${theme.slug}/tutorial.mp4`, tutorialBody, "video", "video/mp4"),
+      seedAsset(admin._id, `seed/theme-sources/${theme.slug}.zip`, seedTemplateZip(theme), "theme_zip", "application/zip"),
+    ]);
     await ThemeModel.findOneAndUpdate(
       { slug: theme.slug },
-      { $setOnInsert: { ...theme, currency: "USD", version: "1.0.0", previewUrl: `https://example.com/themes/${theme.slug}`, imageAssetIds: [asset._id], videoAssetIds: [], ...(source ? { sourceAssetId: source._id } : {}), status: "draft", salesCount: 0, createdBy: admin._id, setupInstructions: "Seeded demonstration theme. Replace the demo source ZIP with the complete production package before accepting real purchases.", seoTitle: `${theme.name} website theme`, seoDescription: theme.shortDescription } },
+      { $setOnInsert: { ...theme, categoryId: categoryIds.get(themeCategories[theme.slug]), currency: "USD", version: "1.0.0", previewUrl: `https://example.com/themes/${theme.slug}`, previewAssetId: preview._id, imageAssetIds: [home._id, projects._id], videoAssetIds: [tutorial._id], sourceAssetId: source._id, status: "draft", salesCount: 0, createdBy: admin._id, setupInstructions: "Extract the ZIP, open index.html in a browser, and edit index.html and styles.css. This is a static HTML/CSS demo starter; replace it with the complete production package before selling.", deployInstructions: "Upload index.html and styles.css together to your static web host.", seoTitle: `${theme.name} website theme`, seoDescription: theme.shortDescription } },
       { upsert: true, runValidators: true },
     );
-    await ThemeModel.updateOne({ slug: theme.slug, imageAssetIds: { $size: 0 } }, { $set: { imageAssetIds: [asset._id] } });
-    if (source) await ThemeModel.updateOne({ slug: theme.slug, sourceAssetId: { $exists: false } }, { $set: { sourceAssetId: source._id } });
+    const existing = await ThemeModel.findOne({ slug: theme.slug }).lean();
+    if (!existing) throw new Error(`Theme missing after seed: ${theme.slug}`);
+    const existingImages = await UploadAssetModel.find({ _id: { $in: existing.imageAssetIds } }).select("+key").lean();
+    const customImages = existing.imageAssetIds.filter((id: Types.ObjectId) => existingImages.some((asset) => String(asset._id) === String(id) && !asset.key.startsWith("seed/")));
+    const images = [...customImages];
+    for (const asset of [home, projects]) if (images.length < 2) images.push(asset._id);
+    await ThemeModel.updateOne({ _id: existing._id }, { $set: {
+      imageAssetIds: customImages.length >= 2 ? existing.imageAssetIds : images,
+      ...(!existing.categoryId ? { categoryId: categoryIds.get(themeCategories[theme.slug]) } : {}),
+      ...(!existing.previewAssetId ? { previewAssetId: preview._id } : {}),
+      ...(!existing.videoAssetIds.length ? { videoAssetIds: [tutorial._id] } : {}),
+      ...(!existing.sourceAssetId ? { sourceAssetId: source._id } : {}),
+    } });
   }
-  console.log(`${seedThemes.length} draft themes ready with placeholder images${env.R2_BUCKET ? " and demo source ZIPs in R2" : ""}.`);
-  if (!env.R2_BUCKET) console.warn("R2_BUCKET is not configured. Source ZIPs remain optional and can be uploaded later.");
+  console.log(`${seedThemes.length} demo themes ready: 2 gallery PNGs, a preview PNG, a tutorial MP4, and a working HTML/CSS template ZIP per theme. Existing publishing status and custom assets are preserved.`);
 }
 
 seed().catch((error) => { console.error("Seed failed:", error instanceof Error ? error.message : error); process.exitCode = 1; }).finally(disconnectDatabase);

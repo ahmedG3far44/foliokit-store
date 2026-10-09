@@ -5,8 +5,8 @@ export function themeAssetIssues(selection: ThemeAssetSelection, assets: Map<str
   const issues: Array<{ path: string[]; message: string }> = [];
   const ready = (id?: string) => id && assets.get(id)?.status === "ready" ? assets.get(id) : undefined;
   const preview = ready(selection.previewAssetId);
-  if (!preview || !(preview.kind === "video" && ["video/mp4", "video/webm"].includes(preview.contentType ?? "") || preview.kind === "image" && preview.contentType === "image/gif")) {
-    issues.push({ path: ["previewAssetId"], message: "Upload one ready MP4, WebM, or GIF preview" });
+  if (!preview || !(preview.kind === "video" && ["video/mp4", "video/webm"].includes(preview.contentType ?? "") || preview.kind === "image" && ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"].includes(preview.contentType ?? ""))) {
+    issues.push({ path: ["previewAssetId"], message: "Upload one ready image, MP4, WebM, or GIF preview" });
   }
   if (selection.imageAssetIds.length < 2 || selection.imageAssetIds.length > 10 || selection.imageAssetIds.some((id) => {
     const asset = ready(id);

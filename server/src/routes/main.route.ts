@@ -3,6 +3,7 @@ import { Router } from "express";
 import userRoutes from "./user.route.ts"
 import authRoutes from "./auth.route.ts";
 import adminRoutes from "./admin.route.ts";
+import { listCategories } from "../services/category.service.ts";
 import themeRoutes from "./theme.route.ts";
 import cartRoutes from "./cart.route.ts";
 import orderRoutes from "./order.route.ts";
@@ -18,6 +19,7 @@ router.use("/admin/emails", emailRoutes);
 router.use("/emails", unsubscribeRoutes);
 router.use("/admin", adminMarketplaceRoutes);
 router.use("/admin", adminRoutes);
+router.get("/categories", async (_req, res, next) => { try { res.setHeader("Cache-Control", "no-store"); res.json({ success: true, data: await listCategories() }); } catch (error) { next(error); } });
 router.use("/themes", themeRoutes);
 router.use("/cart", cartRoutes);
 router.use("/", contentRoutes);

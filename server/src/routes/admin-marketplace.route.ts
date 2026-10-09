@@ -1,3 +1,5 @@
+import { listCategories, saveCategory, deleteCategory } from "../services/category.service.ts";
+import { categoryInputSchema } from "../schemas/marketplace.ts";
 import { raw, Router } from "express";
 import { requireAdmin, requireDatabaseUser } from "../middlewares/auth.ts";
 import { rateLimit } from "../middlewares/rate-limit.ts";
@@ -11,6 +13,11 @@ import { paidOrderInvoiceForAdmin } from "../services/pdf.service.ts";
 import { createDiscount, listDiscounts, paymentSettings, updateDiscount, updatePaymentSettings } from "../services/discount.service.ts";
 
 const router = Router(); router.use(requireDatabaseUser, requireAdmin);
+
+router.get("/categories", async (_req, res, next) => { try { res.json({ success: true, data: await listCategories() }); } catch (error) { next(error); } });
+router.post("/categories", async (req, res, next) => { try { const category = await saveCategory(parseOrThrow(categoryInputSchema, req.body), req.currentUser!._id); await audit(req, "category.create", "category", String(category._id), undefined, category.toObject()); res.status(201).json({ success: true, data: { id: String(category._id) } }); } catch (error) { next(error); } });
+router.put("/categories/:id", async (req, res, next) => { try { const { id } = parseOrThrow(idSchema, req.params); const category = await saveCategory(parseOrThrow(categoryInputSchema, req.body), req.currentUser!._id, id); await audit(req, "category.update", "category", id, undefined, category.toObject()); res.json({ success: true, data: { id } }); } catch (error) { next(error); } });
+router.delete("/categories/:id", async (req, res, next) => { try { const { id } = parseOrThrow(idSchema, req.params); await deleteCategory(id); await audit(req, "category.delete", "category", id); res.json({ success: true, data: null }); } catch (error) { next(error); } });
 
 router.get("/insights", async (req, res, next) => { try { const allowed = ["day", "week", "month", "six_months", "year"] as const; const period = allowed.includes(req.query.period as typeof allowed[number]) ? req.query.period as typeof allowed[number] : "month"; res.json({ success: true, data: await marketplaceInsights(period, req.query.from ? String(req.query.from) : undefined, req.query.to ? String(req.query.to) : undefined) }); } catch (error) { next(error); } });
 

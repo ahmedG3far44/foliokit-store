@@ -1,6 +1,7 @@
+import { uploadAsset } from "../../lib/upload-asset";
 /* useAsync.run is stable across renders. */
 /* oxlint-disable react-hooks/exhaustive-deps */
-import type { PublicAsset, ThemeType } from "../../lib/types";
+import type { CategoryType, PublicAsset, ThemeType } from "../../lib/types";
 import { ArrowLeft, CheckCircle2, FileArchive, Film, ImagePlus, Save, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -15,7 +16,7 @@ import { instructionHtml } from "../../lib/instructions";
 import { ErrorState } from "../error/error";
 
 const blank = {
-  name: "", slug: "", shortDescription: "", description: "", stack: "React, TypeScript",
+  categoryId: "", name: "", slug: "", shortDescription: "", description: "", stack: "React, TypeScript",
   features: "Responsive layouts\nAccessible navigation\nSetup documentation", price: "49", currency: "USD",
   version: "1.0.0", previewUrl: "", changelog: "", setupInstructions: "", deployInstructions: "",
   featured: false, seoTitle: "", seoDescription: "",
@@ -55,7 +56,7 @@ function fileContentType(file: File, kind: UploadKind): string {
 function validateFile(file: File, kind: UploadKind, role: UploadRole): string | undefined {
   const rule = uploadRules[kind];
   const contentType = fileContentType(file, kind);
-  if (role === "preview" && !["video/mp4", "video/webm", "image/gif"].includes(contentType)) return "Choose one MP4, WebM, or GIF preview";
+  if (role === "preview" && ![...uploadRules.image.types, "video/mp4", "video/webm", "image/gif"].includes(contentType)) return "Choose one image, MP4, WebM, or GIF preview";
   const isZip = kind === "theme_zip" && file.name.toLowerCase().endsWith(".zip");
   if (!rule.types.includes(contentType) && !(role === "preview" && contentType === "image/gif") && !isZip) return `Choose a supported ${kind === "theme_zip" ? "ZIP" : kind} file`;
   if (file.size <= 0) return "The selected file is empty";
@@ -63,38 +64,6 @@ function validateFile(file: File, kind: UploadKind, role: UploadRole): string | 
   return undefined;
 }
 
-async function uploadAsset(file: File, kind: UploadKind, update: (progress: number, phase: string) => void): Promise<PublicAsset> {
-  let assetId: string | undefined;
-  try {
-    update(5, "Preparing upload");
-    const init = await api.post<{ asset: PublicAsset; uploadId: string; partSizeBytes: number }>("/admin/uploads/initiate", {
-      kind, originalName: file.name,
-      contentType: fileContentType(file, kind),
-      sizeBytes: file.size,
-    });
-    assetId = init.asset.id;
-    const parts: Array<{ ETag: string; PartNumber: number }> = [];
-    const count = Math.ceil(file.size / init.partSizeBytes);
-
-    for (let index = 0; index < count; index++) {
-      const partNumber = index + 1;
-      update(10 + Math.round(index / count * 80), count > 1 ? `Uploading part ${partNumber} of ${count}` : "Uploading to Cloudflare R2");
-      const part = file.slice(index * init.partSizeBytes, Math.min(file.size, (index + 1) * init.partSizeBytes));
-      const { ETag } = await api.uploadPart(`/admin/uploads/${assetId}/parts/${partNumber}`, part);
-      parts.push({ ETag, PartNumber: partNumber });
-      update(10 + Math.round(partNumber / count * 80), count > 1 ? `Uploaded part ${partNumber} of ${count}` : "Upload transferred");
-    }
-
-    update(95, kind === "image" ? "Optimizing image" : "Verifying upload");
-    const asset = await api.post<PublicAsset>(`/admin/uploads/${assetId}/complete`, { parts });
-    update(100, "Upload complete");
-    return asset;
-  } catch (error) {
-    if (assetId) await api.delete(`/admin/uploads/${assetId}`).catch(() => undefined);
-    if (error instanceof TypeError) throw new Error("The upload service could not be reached. Check your connection and retry");
-    throw error;
-  }
-}
 
 function uniqueValues(value: string | null | undefined, separator: "," | "\n"): string[] {
   const seen = new Set<string>();
@@ -114,6 +83,7 @@ function validateTheme(fields: Fields, images: PublicAsset[], videos: PublicAsse
   const stack = uniqueValues(fields.stack, ",");
   const features = uniqueValues(fields.features, "\n");
 
+  if (!fields.categoryId) errors.categoryId = "Select a category";
   if (name.length < 2) errors.name = "Enter a name with at least 2 characters";
   else if (name.length > 100) errors.name = "Name cannot exceed 100 characters";
   if (slug.length < 2) errors.slug = "Enter a slug with at least 2 characters";
@@ -149,7 +119,7 @@ function validateTheme(fields: Fields, images: PublicAsset[], videos: PublicAsse
   if ((fields.setupInstructions ?? "").length > 20_000) errors.setupInstructions = "Setup instructions cannot exceed 20,000 characters";
   if ((fields.deployInstructions ?? "").length > 20_000) errors.deployInstructions = "Deployment instructions cannot exceed 20,000 characters";
   if ((fields.changelog ?? "").length > 20_000) errors.changelog = "Changelog cannot exceed 20,000 characters";
-  if (!preview || preview.status !== "ready") errors.previewAssets = "Upload one MP4, WebM, or GIF preview";
+  if (!preview || preview.status !== "ready") errors.previewAssets = "Upload one image, MP4, WebM, or GIF preview";
   if (images.length < 2 || images.length > 10 || images.some((asset) => asset.status !== "ready")) errors.galleryAssets = "Upload 2–10 theme images";
   if (videos.length < 1 || videos.length > 2 || videos.some((asset) => asset.status !== "ready")) errors.tutorialAssets = "Upload 1–2 tutorial videos";
   if (!source || source.status !== "ready") errors.sourceAsset = "Upload the required source ZIP file";
@@ -182,6 +152,8 @@ export default function AdminThemeEditorPage() {
   const { notify } = useToast();
   const request = useAsync<ThemeType>();
   const save = useAsync<ThemeType>();
+  const categories = useAsync<CategoryType[]>();
+  useEffect(() => { void categories.run(api.get<CategoryType[]>("/admin/categories")).catch(() => undefined); }, [categories.run]);
   const [fields, setFields] = useState<Fields>(blank);
   const [images, setImages] = useState<PublicAsset[]>([]);
   const [videos, setVideos] = useState<PublicAsset[]>([]);
@@ -202,7 +174,7 @@ export default function AdminThemeEditorPage() {
   useEffect(() => {
     if (!id) return;
     void request.run(api.get<ThemeType>(`/admin/themes/${id}`)).then((theme) => {
-      setFields({ name: theme.name, slug: theme.slug, shortDescription: theme.shortDescription, description: theme.description, stack: theme.stack.join(", "), features: theme.features.join("\n"), price: String(theme.priceMinor / 100), currency: theme.currency, version: theme.version, previewUrl: theme.previewUrl, changelog: theme.changelog ?? "", setupInstructions: instructionHtml(theme.setupInstructions ?? "", theme.instructionsFormat), deployInstructions: instructionHtml(theme.deployInstructions ?? "", theme.instructionsFormat), featured: theme.featured, seoTitle: theme.seoTitle ?? "", seoDescription: theme.seoDescription ?? "" });
+      setFields({ categoryId: theme.categoryId ?? "", name: theme.name, slug: theme.slug, shortDescription: theme.shortDescription, description: theme.description, stack: theme.stack.join(", "), features: theme.features.join("\n"), price: String(theme.priceMinor / 100), currency: theme.currency, version: theme.version, previewUrl: theme.previewUrl, changelog: theme.changelog ?? "", setupInstructions: instructionHtml(theme.setupInstructions ?? "", theme.instructionsFormat), deployInstructions: instructionHtml(theme.deployInstructions ?? "", theme.instructionsFormat), featured: theme.featured, seoTitle: theme.seoTitle ?? "", seoDescription: theme.seoDescription ?? "" });
       setImages(theme.images); setVideos(theme.videos); setSource(theme.sourceAsset); setPreview(theme.previewAsset);
     }).catch(() => undefined);
   }, [id, request.run]);
@@ -213,7 +185,7 @@ export default function AdminThemeEditorPage() {
   const selectFiles = async (files: File[], role: UploadRole) => {
     if (!files.length || uploadLock.current || save.isLoading) return;
     const errorKey: ErrorKey = role === "source" ? "sourceAsset" : role === "gallery" ? "galleryAssets" : role === "tutorial" ? "tutorialAssets" : "previewAssets";
-    const kindFor = (file: File): UploadKind => role === "source" ? "theme_zip" : role === "gallery" || fileContentType(file, "image") === "image/gif" ? "image" : "video";
+    const kindFor = (file: File): UploadKind => role === "source" ? "theme_zip" : role === "gallery" || fileContentType(file, "image").startsWith("image/") ? "image" : "video";
     const max = role === "gallery" ? 10 - images.length : role === "tutorial" ? 2 - videos.length : 1;
     const fileError = files.length > max ? `Choose no more than ${Math.max(0, max)} additional ${role} file(s)` : files.map((file) => validateFile(file, kindFor(file), role)).find(Boolean);
     if (fileError) { setErrors((current) => ({ ...current, [errorKey]: fileError })); return; }
@@ -247,7 +219,7 @@ export default function AdminThemeEditorPage() {
     if (firstError) { requestAnimationFrame(() => document.querySelector<HTMLElement>(`[aria-describedby~="${firstError}-error"]`)?.focus()); return; }
 
     const body = {
-      name: (fields.name ?? "").trim(), slug: (fields.slug ?? "").trim(), shortDescription: (fields.shortDescription ?? "").trim(), description: (fields.description ?? "").trim(),
+      categoryId: fields.categoryId, name: (fields.name ?? "").trim(), slug: (fields.slug ?? "").trim(), shortDescription: (fields.shortDescription ?? "").trim(), description: (fields.description ?? "").trim(),
       stack: uniqueValues(fields.stack, ","), features: uniqueValues(fields.features, "\n"),
       priceMinor: Math.round(Number(fields.price ?? 0) * 100), currency: (fields.currency ?? "").trim().toUpperCase(), version: (fields.version ?? "").trim(),
       previewUrl: (fields.previewUrl ?? "").trim(), previewAssetId: preview!.id, imageAssetIds: images.map((asset) => asset.id),
@@ -278,11 +250,12 @@ export default function AdminThemeEditorPage() {
 
   return <main className="admin-page">
     <Link className="back-link" to="/dashboard/themes"><ArrowLeft size={16} />Theme library</Link>
-    <div className="editor-heading"><div><span className="eyebrow">Catalog editor</span><h1>{id ? "Edit theme" : "Create a theme"}</h1><p>Add one animated preview, 2–10 theme images, 1–2 tutorial videos, and the private source ZIP.</p></div></div>
+    <div className="editor-heading"><div><span className="eyebrow">Catalog editor</span><h1>{id ? "Edit theme" : "Create a theme"}</h1><p>Add one image or animated preview, 2–10 theme images, 1–2 tutorial videos, and the private source ZIP.</p></div></div>
     {save.error && <ErrorMessage message={save.error} onDismiss={save.clearError} />}
     <form className="theme-editor" onSubmit={submit} noValidate>
       <section className="editor-main">
         <div className="editor-section"><h2>Identity and story</h2><div className="form-grid">
+          <label className="full">Category <span className="field-required">Required</span><select {...fieldErrorProps("categoryId", errors)} value={fields.categoryId} onChange={(event) => field("categoryId", event.target.value)}><option value="">Select a category</option>{categories.data?.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><FieldError name="categoryId" errors={errors} />{categories.error && <small role="alert">{categories.error} <button type="button" onClick={() => void categories.run(api.get<CategoryType[]>("/admin/categories")).catch(() => undefined)}>Retry</button></small>}<Link to="/dashboard/categories">Manage categories</Link></label>
           <label>Name <span className="field-required">Required</span><input {...fieldErrorProps("name", errors)} value={fields.name} onChange={(event) => { field("name", event.target.value); if (!id) field("slug", event.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")); }} /><FieldError name="name" errors={errors} /></label>
           <label>Slug <span className="field-required">Required</span><input {...fieldErrorProps("slug", errors)} value={fields.slug} onChange={(event) => field("slug", event.target.value)} /><FieldError name="slug" errors={errors} /></label>
           <label className="full">Short description <span className="field-required">Required</span><input {...fieldErrorProps("shortDescription", errors)} maxLength={240} value={fields.shortDescription} onChange={(event) => field("shortDescription", event.target.value)} /><FieldError name="shortDescription" errors={errors} /></label>
@@ -310,8 +283,8 @@ export default function AdminThemeEditorPage() {
           <div className="asset-section-heading"><div><h2>Theme assets</h2><p>Complete all four requirements.</p></div><span className={completedRequirements === 4 ? "complete" : ""}>{completedRequirements} / 4</span></div>
           {uploading && <UploadProgress upload={uploading} />}
           <div className={`asset-requirement ${previewReady ? "met" : ""}`}><CheckCircle2 size={16} /><span>Card preview</span><b>{preview ? 1 : 0} / 1</b></div>
-          <button type="button" disabled={busy} className={`upload-drop ${errors.previewAssets ? "invalid" : ""}`} {...fieldErrorProps("previewAssets", errors)} onClick={() => previewInputRef.current?.click()}><Film size={18} /><strong className="text-xs">{preview ? "Replace preview" : "Upload preview"}</strong><span className="text-xs">MP4 or WebM up to 250 MB · GIF up to 10 MB</span></button>
-          <input ref={previewInputRef} className="asset-file-input" disabled={busy} type="file" accept="video/mp4,video/webm,image/gif" onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void selectFiles(files, "preview"); }} />
+          <button type="button" disabled={busy} className={`upload-drop ${errors.previewAssets ? "invalid" : ""}`} {...fieldErrorProps("previewAssets", errors)} onClick={() => previewInputRef.current?.click()}><Film size={18} /><strong className="text-xs">{preview ? "Replace preview" : "Upload preview"}</strong><span className="text-xs">Images or GIF up to 10 MB · MP4 or WebM up to 250 MB</span></button>
+          <input ref={previewInputRef} className="asset-file-input" disabled={busy} type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,video/mp4,video/webm" onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void selectFiles(files, "preview"); }} />
           {preview && <div className="asset-row"><span><ThemeMedia asset={preview} alt="Card preview" preview /></span><div><strong className="text-xs">{preview.originalName}</strong><small>Card thumbnail · {preview.status}</small></div><button type="button" disabled={busy} onClick={() => setPreview(undefined)}>Remove</button></div>}
           <FieldError name="previewAssets" errors={errors} />
 

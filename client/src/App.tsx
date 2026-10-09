@@ -21,7 +21,8 @@ const AdminLayout = lazy(() => import('./components/admin/admin-layout').then((m
 const UsersPage = lazy(() => import('./routes/admin/users'))
 const TransactionsPage = lazy(() => import('./routes/admin/transactions'))
 const ThemesPage = lazy(() => import('./routes/themes'))
-const ThemeDetailPage = lazy(() => import('./routes/theme-detail'))
+const ThemeDetailPage = lazy(() => import('./routes/theme-or-category'))
+const AdminCategoriesPage = lazy(() => import('./routes/admin/categories'))
 const CartPage = lazy(() => import('./routes/cart'))
 const PurchasesPage = lazy(() => import('./routes/purchases'))
 const OrdersPage = lazy(() => import('./routes/orders'))
@@ -93,6 +94,7 @@ function App({ serverUrl }: { serverUrl?: string }) {
               <Route path='insights' element={<InsightsPage />} />
               <Route path='users' element={<UsersPage />} />
               <Route path='transactions' element={<TransactionsPage />} />
+              <Route path='categories' element={<AdminCategoriesPage />} />
               <Route path='themes' element={<AdminThemesPage />} />
               <Route path='themes/new' element={<AdminThemeEditorPage />} />
               <Route path='theme/new' element={<AdminThemeEditorPage />} />

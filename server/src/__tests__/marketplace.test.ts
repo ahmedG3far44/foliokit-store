@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
 import env from "../config/env.ts";
-import { checkoutSchema, discountInputSchema, paypalCaptureSchema, paymentSettingsSchema, themeInputSchema, themePatchSchema } from "../schemas/marketplace.ts";
+import { categoryInputSchema, catalogQuerySchema, checkoutSchema, discountInputSchema, paypalCaptureSchema, paymentSettingsSchema, themeInputSchema, themePatchSchema } from "../schemas/marketplace.ts";
 import { validateStripeCheckoutAmounts, verifyStripeSignature } from "../services/stripe.service.ts";
 import { createCheckout } from "../services/checkout.service.ts";
 import { themeAssetIssues } from "../utils/theme-assets.ts";
@@ -52,7 +52,7 @@ test("R2 signing falls back to local time if the initial storage date is invalid
   assert.ok((await clock()).getTime() >= before);
 });
 
-const validTheme = { name: "Studio Grid", slug: "studio-grid", shortDescription: "A considered portfolio for creative studios.", description: "A complete, responsive portfolio theme designed for independent creative studios.", stack: ["React"], features: ["Responsive"], priceMinor: 4900, currency: "usd", version: "1.0.0", previewUrl: "https://preview.example.com", previewAssetId: "64b64c16e3a54f0012345670", imageAssetIds: ["64b64c16e3a54f0012345678", "64b64c16e3a54f0012345677"], videoAssetIds: ["64b64c16e3a54f0012345676"], sourceAssetId: "64b64c16e3a54f0012345679", featured: false };
+const validTheme = { categoryId: "64b64c16e3a54f0012345680", name: "Studio Grid", slug: "studio-grid", shortDescription: "A considered portfolio for creative studios.", description: "A complete, responsive portfolio theme designed for independent creative studios.", stack: ["React"], features: ["Responsive"], priceMinor: 4900, currency: "usd", version: "1.0.0", previewUrl: "https://preview.example.com", previewAssetId: "64b64c16e3a54f0012345670", imageAssetIds: ["64b64c16e3a54f0012345678", "64b64c16e3a54f0012345677"], videoAssetIds: ["64b64c16e3a54f0012345676"], sourceAssetId: "64b64c16e3a54f0012345679", featured: false };
 
 test("theme input preserves integer minor units and normalizes currency", () => {
   const parsed = themeInputSchema.parse(validTheme);
@@ -258,6 +258,8 @@ test("theme assets require the correct roles, ready status, and distinct files",
   assets.set(validTheme.previewAssetId, { kind: "image", contentType: "image/gif", status: "ready" });
   assert.deepEqual(themeAssetIssues(validTheme, assets), []);
   assets.set(validTheme.previewAssetId, { kind: "image", contentType: "image/png", status: "ready" });
+  assert.deepEqual(themeAssetIssues(validTheme, assets), []);
+  assets.set(validTheme.previewAssetId, { kind: "image", contentType: "image/svg+xml", status: "ready" });
   assert.equal(themeAssetIssues(validTheme, assets)[0]?.path[0], "previewAssetId");
   assets.set(validTheme.previewAssetId, { kind: "video", contentType: "video/webm", status: "ready" });
   assert.deepEqual(themeAssetIssues(validTheme, assets), []);
@@ -323,4 +325,123 @@ test("today insights use the current calendar day and custom ranges include full
     [custom.end.getFullYear(), custom.end.getMonth(), custom.end.getDate(), custom.end.getHours(), custom.end.getMinutes(), custom.end.getSeconds(), custom.end.getMilliseconds()],
     [2026, 8, 12, 23, 59, 59, 999],
   );
+});
+
+
+test("category input requires an image, validates URLs and normalizes fields", () => {
+  const category = { name: " Creatives ", slug: "creatives", description: "Themes for independent creative professionals.", imageUrl: "https://example.com/category.jpg" };
+  assert.equal(categoryInputSchema.parse(category).name, "Creatives");
+  assert.equal(categoryInputSchema.parse(category).sortOrder, 0);
+  assert.equal(categoryInputSchema.safeParse({ ...category, imageUrl: undefined }).success, false);
+  assert.equal(categoryInputSchema.safeParse({ ...category, imageUrl: "javascript:alert(1)" }).success, false);
+  assert.equal(categoryInputSchema.safeParse({ ...category, imageUrl: "http://localhost/image.jpg" }).success, false);
+  assert.equal(categoryInputSchema.safeParse({ ...category, slug: "Developer's" }).success, false);
+  assert.equal(categoryInputSchema.safeParse({ ...category, sortOrder: -1 }).success, false);
+  assert.equal(categoryInputSchema.safeParse({ ...category, imageUrl: undefined, imageAssetId: validTheme.categoryId }).success, true);
+});
+
+test("themes require a valid category while partial legacy edits remain supported", () => {
+  assert.equal(themeInputSchema.safeParse({ ...validTheme, categoryId: undefined }).success, false);
+  assert.equal(themeInputSchema.safeParse({ ...validTheme, categoryId: "invalid" }).success, false);
+  assert.equal(themePatchSchema.safeParse({ categoryId: validTheme.categoryId }).success, true);
+  assert.equal(themePatchSchema.safeParse({ description: validTheme.description }).success, true);
+  assert.equal(catalogQuerySchema.parse({ category: "e-commerce" }).category, "e-commerce");
+  assert.equal(catalogQuerySchema.safeParse({ category: { $ne: null } }).success, false);
+});
+
+
+test("category catalog filters published themes by category ID and rejects unknown categories", async (context) => {
+  const { default: CategoryModel } = await import("../models/category.ts");
+  const { default: ThemeModel } = await import("../models/theme.ts");
+  const { listPublishedThemes } = await import("../services/theme.service.ts");
+  let filter: unknown;
+  context.mock.method(CategoryModel, "findOne", () => ({ lean: async () => ({ _id: validTheme.categoryId }) }));
+  const query = { sort: () => query, skip: () => query, limit: () => query, lean: async () => [] };
+  context.mock.method(ThemeModel, "find", (value: unknown) => { filter = value; return query; });
+  context.mock.method(ThemeModel, "countDocuments", async () => 0);
+  context.mock.method(ThemeModel, "aggregate", async () => []);
+  const result = await listPublishedThemes(catalogQuerySchema.parse({ category: "creatives" }));
+  assert.deepEqual(filter, { status: "published", categoryId: validTheme.categoryId });
+  assert.equal(result.total, 0);
+  assert.deepEqual(result.items, []);
+  context.mock.method(CategoryModel, "findOne", () => ({ lean: async () => null }));
+  await assert.rejects(() => listPublishedThemes(catalogQuerySchema.parse({ category: "missing" })), (error: unknown) => error instanceof AppError && error.status === 404);
+});
+
+test("category deletion protects assigned themes and unused categories can be removed", async (context) => {
+  const { default: CategoryModel } = await import("../models/category.ts");
+  const { default: ThemeModel } = await import("../models/theme.ts");
+  const { deleteCategory } = await import("../services/category.service.ts");
+  context.mock.method(ThemeModel, "exists", async () => ({ _id: validTheme.categoryId }));
+  const deletion = context.mock.method(CategoryModel, "findByIdAndDelete", async () => ({ _id: validTheme.categoryId }));
+  await assert.rejects(() => deleteCategory(validTheme.categoryId), (error: unknown) => error instanceof AppError && error.status === 409);
+  assert.equal(deletion.mock.callCount(), 0);
+  context.mock.method(ThemeModel, "exists", async () => null);
+  await deleteCategory(validTheme.categoryId);
+  assert.equal(deletion.mock.callCount(), 1);
+});
+
+
+test("seed media provides real PNGs, a tutorial MP4, and a working multi-file template ZIP", async () => {
+  const { seedImage, seedTemplateZip, seedTutorialMp4 } = await import("../utils/seed-assets.ts");
+  const { default: sharp } = await import("sharp");
+  const theme = { name: "Demo & Studio", slug: "demo-studio", color: "172033", accent: "F4B942", shortDescription: "A demo starter template." };
+  const images = await Promise.all(["home", "projects", "preview"].map((view) => seedImage(theme, view as "home" | "projects" | "preview")));
+  for (const image of images) {
+    const metadata = await sharp(image).metadata();
+    assert.equal(metadata.format, "png"); assert.equal(metadata.width, 1200); assert.equal(metadata.height, 800);
+  }
+  assert.equal(images[0]!.equals(images[1]!), false);
+  assert.equal(images[0]!.equals(images[2]!), false);
+  const tutorial = await seedTutorialMp4();
+  assert.equal(tutorial.toString("ascii", 4, 8), "ftyp");
+  assert.ok(tutorial.length > 1000);
+  const archive = seedTemplateZip(theme);
+  const files = new Map<string, string>();
+  let offset = 0;
+  while (archive.readUInt32LE(offset) === 0x04034b50) {
+    const size = archive.readUInt32LE(offset + 18), nameSize = archive.readUInt16LE(offset + 26), extraSize = archive.readUInt16LE(offset + 28);
+    const name = archive.toString("utf8", offset + 30, offset + 30 + nameSize);
+    const start = offset + 30 + nameSize + extraSize;
+    files.set(name, archive.toString("utf8", start, start + size)); offset = start + size;
+  }
+  assert.deepEqual([...files.keys()], ["index.html", "styles.css", "README.md"]);
+  assert.match(files.get("index.html")!, /Demo &amp; Studio/);
+  assert.match(files.get("index.html")!, /href="styles.css"/);
+  assert.match(files.get("styles.css")!, /@media/);
+  assert.match(files.get("README.md")!, /Open index.html/);
+  assert.equal(archive.readUInt16LE(archive.length - 22 + 10), 3);
+});
+
+test("theme search matches partial words, technology punctuation, and literal special characters", async () => {
+  const { themeSearchTerms } = await import("../utils/theme-search.ts");
+  assert.ok(themeSearchTerms("aur")[0]!.test("Aurora Studio"));
+  for (const query of ["nextjs", "Next.js", "NEXT-JS"]) {
+    assert.ok(themeSearchTerms(query).every((term) => term.test("Next.js")));
+  }
+  assert.ok(themeSearchTerms("c++")[0]!.test("C++"));
+  assert.equal(themeSearchTerms("c++")[0]!.test("CSS"), false);
+  assert.deepEqual(themeSearchTerms(" .* () "), []);
+  assert.equal(themeSearchTerms("React react").length, 1);
+});
+
+test("theme search combines keywords across name, stack, descriptions, features, and categories", async () => {
+  const { themeSearchTerms, themeSearchFilter } = await import("../utils/theme-search.ts");
+  const categoryId = validTheme.categoryId;
+  const categories = [{ _id: categoryId, name: "Agencies", slug: "agencies", description: "Themes for creative studios" }];
+  const filter = themeSearchFilter(themeSearchTerms("studio react responsive agencies"), categories);
+  const clauses = filter.$and!;
+  assert.equal(clauses.length, 4);
+  const matches = (theme: Record<string, unknown>) => clauses.every((clause) => clause.$or!.some((condition) => Object.entries(condition).some(([field, pattern]) => {
+    const value = theme[field];
+    if (pattern instanceof RegExp) return (Array.isArray(value) ? value : [value]).some((item) => typeof item === "string" && pattern.test(item));
+    if (field === "categoryId") return (pattern as { $in: unknown[] }).$in.includes(value);
+    return false;
+  })));
+  assert.equal(matches({ name: "Studio Grid", stack: ["React", "TypeScript"], shortDescription: "Responsive layouts", categoryId }), true);
+  assert.equal(matches({ name: "Studio Grid", stack: ["Astro"], description: "Responsive layouts", categoryId }), false);
+  const single = themeSearchFilter(themeSearchTerms("responsive"));
+  assert.ok(single.$and![0]!.$or!.some((clause) => "shortDescription" in clause));
+  assert.ok(single.$and![0]!.$or!.some((clause) => "features" in clause));
+  assert.deepEqual(themeSearchFilter([]), {});
 });

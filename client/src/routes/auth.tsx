@@ -49,7 +49,17 @@ function AuthPage({ mode }: { mode: "login" | "register" }) {
   }
 
   return <main className="auth-page">
-    <Link className="brand" to="/">FOLIO <span>KIT</span></Link>
+    <aside className="auth-visual" aria-label="Folio Kit">
+      <Link className="brand auth-visual-brand" to="/">FOLIO <span>KIT</span></Link>
+      <div className="auth-visual-art" aria-hidden="true"><span /><span /><span /></div>
+      <div className="auth-visual-copy">
+        <span className="auth-visual-eyebrow">Made for your next chapter</span>
+        <h2>A portfolio that<br />feels like you.</h2>
+        <p>Discover a starting point for your ideas, your work, and what comes next.</p>
+      </div>
+      <span className="auth-visual-caption">For creators, developers, and independent studios.</span>
+    </aside>
+    <div className="auth-form-side">
     <section className="auth-panel" aria-labelledby="auth-heading">
       <h1 id="auth-heading">{mode === "register" ? "Create your account" : "Welcome back"}</h1>
       <p className="auth-lede">{mode === "register" ? "Start building your portfolio library." : "Sign in to continue to Foliokit."}</p>
@@ -81,6 +91,7 @@ function AuthPage({ mode }: { mode: "login" | "register" }) {
       <p className="auth-switch">{mode === "register" ? "Already have an account?" : "Don't have an account?"} <Link to={mode === "register" ? "/sign-in" : "/sign-up"}>{mode === "register" ? "Sign in" : "Sign up"}</Link></p>
       <small>By continuing, you agree to our <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>.</small>
     </section>
+    </div>
   </main>;
 }
 

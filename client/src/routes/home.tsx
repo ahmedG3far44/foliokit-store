@@ -1,3 +1,4 @@
+import { CategoryCards } from "../components/category-cards";
 import type { CatalogResponse } from "../lib/types";
 import { ArrowRight, CheckCircle2, Code2, Rocket } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -56,6 +57,7 @@ export default function Home() {
     <HeroSection />
     <LogoMarquee />
     <main>
+      <CategoryCards />
       {/* <section className="buyer-assurance landing-reveal" data-reveal aria-label="Why choose Folio Kit">
         <p>Made for creative people who want to launch—not wrestle with a blank canvas.</p>
         <div>

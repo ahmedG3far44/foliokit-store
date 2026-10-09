@@ -8,7 +8,15 @@ const httpsUrl = z.string().url().refine((value) => {
   return url.protocol === "https:" && host !== "localhost" && !host.startsWith("127.") && host !== "0.0.0.0" && !host.startsWith("10.") && !host.startsWith("192.168.") && !/^172\.(1[6-9]|2\d|3[01])\./.test(host);
 }, "A public HTTPS URL is required");
 
+export const categoryInputSchema = z.object({
+  name: z.string().trim().min(2).max(100), slug,
+  description: z.string().trim().min(10).max(2000),
+  imageUrl: httpsUrl.optional(), imageAssetId: objectId.optional(),
+  sortOrder: z.number().int().min(0).max(10000).default(0),
+}).strict().refine((value) => Boolean(value.imageUrl || value.imageAssetId), "Add a category image");
+
 const themeBaseSchema = z.object({
+  categoryId: objectId,
   name: z.string().trim().min(2).max(100),
   slug,
   shortDescription: z.string().trim().min(10).max(240),
@@ -44,6 +52,7 @@ export const themePatchSchema = themeBaseSchema.partial().refine((value) => Obje
 export const catalogQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(48).default(12),
+  category: slug.optional(),
   search: z.string().trim().max(100).optional(),
   stack: z.string().trim().max(40).optional(),
   minPrice: z.coerce.number().int().min(0).optional(),

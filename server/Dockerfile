@@ -27,6 +27,7 @@ COPY server/package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/server/dist ./dist
+COPY --from=builder /app/server/seed-assets ./seed-assets
 
 USER node
 

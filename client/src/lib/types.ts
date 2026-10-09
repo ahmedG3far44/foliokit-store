@@ -104,7 +104,12 @@ export interface PublicAsset {
   variants?: Array<{ format: string; url: string; width?: number; height?: number; sizeBytes: number }>;
 }
 
+export interface CategoryType {
+  id: string; name: string; slug: string; description: string; imageUrl?: string; imageAssetId?: string; image?: PublicAsset; sortOrder: number;
+}
+
 export interface ThemeType {
+  categoryId?: string;
   id: string;
   name: string;
   slug: string;

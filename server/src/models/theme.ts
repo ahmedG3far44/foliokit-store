@@ -2,6 +2,7 @@ import mongoose, { type Types } from "mongoose";
 
 const { Schema, model, models } = mongoose;
 export interface ThemeDocument {
+  categoryId?: Types.ObjectId;
   name: string;
   slug: string;
   shortDescription: string;
@@ -32,6 +33,7 @@ export interface ThemeDocument {
 }
 
 const schema = new Schema<ThemeDocument>({
+  categoryId: { type: Schema.Types.ObjectId, ref: "Category", index: true },
   name: { type: String, required: true, trim: true },
   slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
   shortDescription: { type: String, required: true, trim: true, maxlength: 240 },

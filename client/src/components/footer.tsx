@@ -80,10 +80,10 @@ export default function Footer() {
               <div className="payment-provider-block">
 
                 <div className="payment-badges" aria-label="Accepted payment methods">
-                  <span className="pay-badge" title="Visa" aria-label="Visa"><img src="/payments/visa.png" alt="" width={20} height={20} /></span>
-                  <span className="pay-badge" title="Mastercard" aria-label="Mastercard"><img src="/payments/mastercard.png" alt="" width={20} height={20} /></span>
-                  <span className="pay-badge" title="Google Pay" aria-label="Google Pay"><img src="/providers/google.svg" alt="" width={20} height={20} /></span>
-                  <span className="pay-badge" title="Apple Pay" aria-label="Apple Pay"><img src="/providers/apple.svg" alt="" width={20} height={20} /></span>
+                  <span className="pay-badge" title="Visa" aria-label="Visa"><img src="/payments/visa.png" alt="" width={40} height={24} /></span>
+                  <span className="pay-badge" title="Mastercard" aria-label="Mastercard"><img src="/payments/mastercard.png" alt="" width={40} height={24} /></span>
+                  <span className="pay-badge" title="Google Pay" aria-label="Google Pay"><img src="/providers/google.svg" alt="" width={40} height={24} /></span>
+                  <span className="pay-badge" title="Apple Pay" aria-label="Apple Pay"><img src="/providers/apple.svg" alt="" width={40} height={24} /></span>
                   <span className="pay-badge" title="Stripe" aria-label="Stripe"><PaymentProviderMark provider="stripe" /></span>
                   <span className="pay-badge" title="PayPal" aria-label="PayPal"><PaymentProviderMark provider="paypal" /></span>
 

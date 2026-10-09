@@ -1,6 +1,6 @@
 /* useAsync.run is stable across renders. */
 /* oxlint-disable react-hooks/exhaustive-deps */
-import type { CatalogResponse } from "../lib/types";
+import type { CategoryType, CatalogResponse } from "../lib/types";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Header from "../components/header";
@@ -13,7 +13,7 @@ import { useAsync } from "../hooks/use-async";
 import { api } from "../lib/api";
 import { preloadThemePreviews } from "../lib/preload-theme-previews";
 
-export default function ThemesPage() {
+export default function ThemesPage({ category }: { category?: CategoryType }) {
   const [filters, setFilters] = useState({ search: "", stack: "", sort: "newest", page: 1 });
   const [draft, setDraft] = useState("");
   const { user } = useAppAuth();
@@ -21,10 +21,11 @@ export default function ThemesPage() {
   const request = useAsync<CatalogResponse>();
   const load = useCallback(() => {
     const params = new URLSearchParams({ sort: filters.sort, page: String(filters.page), limit: "12" });
+    if (category) params.set("category", category.slug);
     if (filters.search) params.set("search", filters.search);
     if (filters.stack) params.set("stack", filters.stack);
     return request.run(api.get<CatalogResponse>(`/themes?${params}`).then(preloadThemePreviews)).catch(() => undefined);
-  }, [filters, request.run]);
+  }, [filters, category, request.run]);
 
   useEffect(() => { void load(); }, [load]);
   const search = (event: FormEvent) => { event.preventDefault(); setFilters((value) => ({ ...value, search: draft, page: 1 })); };
@@ -41,9 +42,9 @@ export default function ThemesPage() {
   return <div className="store-page">
     <Header />
     <main className="catalog-page">
-      <div className="catalog-heading"><span className="eyebrow">Theme library</span><h1>Find your portfolio’s point of view.</h1><p>Explore responsive templates built for designers, developers, studios, and independent creators.</p></div>
+      <div className="catalog-heading"><span className="eyebrow">Theme library</span><h1>{category ? `${category.name} themes` : "Find your portfolio’s point of view."}</h1><p>{category?.description ?? "Explore responsive templates built for designers, developers, studios, and independent creators."}</p></div>
       <div className="catalog-toolbar">
-        <form onSubmit={search} className="search-box"><Search size={18} /><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Search themes or technology" /><button>Search</button></form>
+        <form onSubmit={search} className="search-box"><Search size={18} /><input value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="Search themes by name, technology, description, feature, or category" placeholder="Search names, stacks, features…" /><button>Search</button></form>
         <div className="filter-group">
           <SlidersHorizontal size={18} />
           <select value={filters.stack} onChange={(event) => setFilters((value) => ({ ...value, stack: event.target.value, page: 1 }))}><option value="">All stacks</option>{request.data?.stacks.map((item) => <option key={item}>{item}</option>)}</select>

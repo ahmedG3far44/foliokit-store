@@ -1,21 +1,27 @@
-import { useState, type ImgHTMLAttributes } from "react";
+import { useEffect, useState, type ImgHTMLAttributes } from "react";
 
 const PLACEHOLDER_IMAGE = "/images/placeholder.png";
 
 interface FallbackImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> {
   src?: string;
+  loadTimeoutMs?: number;
 }
 
 export function FallbackImage({ src, className = "", onError, ...props }: FallbackImageProps) {
   return <ImageWithLoading key={src} src={src} className={className} onError={onError} {...props} />;
 }
 
-function ImageWithLoading({ src, className = "", onError, onLoad, ...props }: FallbackImageProps) {
+function ImageWithLoading({ src, className = "", onError, onLoad, loadTimeoutMs, ...props }: FallbackImageProps) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const showPlaceholder = !src || failed;
   const imageSource = showPlaceholder ? PLACEHOLDER_IMAGE : src;
   const pending = !showPlaceholder && !loaded;
+  useEffect(() => {
+    if (!pending || !loadTimeoutMs) return;
+    const timeout = window.setTimeout(() => setFailed(true), loadTimeoutMs);
+    return () => window.clearTimeout(timeout);
+  }, [pending, loadTimeoutMs]);
 
   return (
     <span className={`fallback-image ${pending ? "skeleton " : ""}${className}`.trim()} data-placeholder={showPlaceholder || undefined} data-loading={pending || undefined} aria-busy={pending}>
