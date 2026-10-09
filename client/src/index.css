@@ -4429,7 +4429,11 @@ tbody tr:hover {
   text-decoration: underline;
 }
 .social-auth-actions > div {
+  width: 100%;
   max-width: 100%;
+}
+.social-auth-actions iframe {
+  width: 100% !important;
 }
 
 @media (max-width: 760px) {
