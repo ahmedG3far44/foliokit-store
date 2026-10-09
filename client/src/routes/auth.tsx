@@ -1,5 +1,5 @@
 import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
-import { LoaderCircle } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { IUser } from "../lib/types";
@@ -15,6 +15,7 @@ function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const [googleButtonWidth, setGoogleButtonWidth] = useState(280);
@@ -61,6 +62,10 @@ function AuthPage({ mode }: { mode: "login" | "register" }) {
     </aside>
     <div className="auth-form-side">
     <section className="auth-panel" aria-labelledby="auth-heading">
+      <Link className="auth-panel-brand" to="/" aria-label="Foliokit home">
+        <img src="/icon.png" alt="" width={40} height={40} />
+        <span>FOLIO<span className="auth-panel-brand-accent">KIT</span></span>
+      </Link>
       <h1 id="auth-heading">{mode === "register" ? "Create your account" : "Welcome back"}</h1>
       <p className="auth-lede">{mode === "register" ? "Start building your portfolio library." : "Sign in to continue to Foliokit."}</p>
       <div className="social-auth-actions" ref={googleButtonRef}>
@@ -80,7 +85,15 @@ function AuthPage({ mode }: { mode: "login" | "register" }) {
       <form className="auth-form" onSubmit={(event) => void submit(event)}>
         {mode === "register" && <label>Full name<input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} minLength={2} maxLength={100} placeholder="e.g. Alex Morgan" required /></label>}
         <label>Email<input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="alex@example.com" required /></label>
-        <label>Password<input type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} minLength={mode === "register" ? 10 : 1} maxLength={128} placeholder={mode === "register" ? "At least 10 characters" : "Enter your password"} required /></label>
+        <div className="auth-password-field">
+          <label htmlFor="auth-password">Password</label>
+          <div className="auth-password-input">
+            <input id="auth-password" type={showPassword ? "text" : "password"} autoComplete={mode === "register" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} minLength={mode === "register" ? 10 : 1} maxLength={128} placeholder={mode === "register" ? "At least 10 characters" : "Enter your password"} required />
+            <button className="auth-password-toggle" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-controls="auth-password" onClick={() => setShowPassword((visible) => !visible)}>
+              {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+            </button>
+          </div>
+        </div>
         {mode === "register" && <small className="password-hint">Use 10+ characters with uppercase, lowercase, and a number.</small>}
         <button className="primary-button auth-submit" type="submit" disabled={isLoading}>
           {isLoading && <LoaderCircle className="auth-spinner" size={18} />}

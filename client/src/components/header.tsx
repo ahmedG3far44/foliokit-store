@@ -1,6 +1,6 @@
-import { ArrowLeftRight, ChevronDown, LayoutDashboardIcon, LayoutTemplate, LibraryBig, Menu, PackageCheck, ReceiptText, ShoppingBag, X } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, LayoutDashboardIcon, LayoutTemplate, LibraryBig, LogIn, Menu, PackageCheck, ReceiptText, ShoppingBag, UserPlus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAppAuth } from "../context/auth-store";
 import { useCart } from "../context/cart-store";
 import { AccountButton } from "./account-button";
@@ -18,7 +18,6 @@ function Header() {
 
   const location = useLocation();
 
-  const navigate = useNavigate();
 
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [openedAtPath, setOpenedAtPath] = useState(location.pathname);
@@ -123,8 +122,8 @@ function Header() {
 
       <div className="auth-actions">
         {isReady && !user && <>
-          <button onClick={() => navigate("/sign-in")} className="cursor-pointer hover:bg-white hover:text-brand border-brand transition text-xs font-semibold bg-brand text-white rounded-md py-1.5 px-3.5" >Login</button>
-          <button onClick={() => navigate("/sign-up")} className="cursor-pointer hover:bg-brand hover:text-white hover:border-transparent transition text-xs font-semibold text-brand bg-white rounded-md py-1.5 px-3.5 border border-border-color" >Create account</button>
+          <Link to="/sign-in" className="site-nav-link header-auth-link"><LogIn size={17} strokeWidth={1.9} />Login</Link>
+          <Link to="/sign-up" className="site-nav-link header-auth-link header-signup-link"><UserPlus size={17} strokeWidth={1.9} />Create account</Link>
         </>}
 
         {user && <>
@@ -178,9 +177,9 @@ function Header() {
           </NavLink>}
         </>}
         {!user && <>
-          <div className="space-x-2">
-            <button onClick={() => navigate("/sign-in")} className="cursor-pointer hover:bg-white hover:text-brand border-brand transition text-xs font-semibold bg-brand text-white rounded-md py-1.5 px-3.5" >Login</button>
-            <button onClick={() => navigate("/sign-up")} className="cursor-pointer hover:bg-brand hover:text-white hover:border-transparent transition text-xs font-semibold text-brand bg-white rounded-md py-1.5 px-3.5 border border-border-color" >Create account</button>
+          <div className="mobile-auth-actions">
+            <Link to="/sign-in" tabIndex={mobileMenuOpen ? 0 : -1} onClick={() => setMobileOpen(false)} className="site-nav-link header-auth-link"><LogIn size={17} strokeWidth={1.9} />Login</Link>
+            <Link to="/sign-up" tabIndex={mobileMenuOpen ? 0 : -1} onClick={() => setMobileOpen(false)} className="site-nav-link header-auth-link header-signup-link"><UserPlus size={17} strokeWidth={1.9} />Create account</Link>
 
           </div>
         </>}
@@ -193,7 +192,7 @@ export default Header;
 
 
 export function Logo() {
-  return (<Link className="text-white font-black font-sans text-xl leading-3 transition-all duration-200 ease-in-out hover:opacity-75 " to="/">FOLIO <span className="text-brand">KIT</span></Link>)
+  return (<Link className="text-white font-[1000] tracking-tighter font-sans text-xl leading-3 transition-all duration-200 ease-in-out hover:opacity-75 " to="/">FOLIO <span className="text-brand">KIT</span></Link>)
 }
 
 export function Skeleton() {
