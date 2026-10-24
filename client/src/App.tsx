@@ -80,8 +80,8 @@ function App({ serverUrl }: { serverUrl?: string }) {
             <Route path='/privacy' element={<PrivacyPage />} />
             <Route path='/terms' element={<TermsPage />} />
             <Route path='/refund' element={<RefundPage />} />
-            <Route path='/sign-in/*' element={<SignInPage />} />
-            <Route path='/sign-up/*' element={<SignUpPage />} />
+            <Route path='/login/*' element={<SignInPage />} />
+            <Route path='/register/*' element={<SignUpPage />} />
             <Route path='/cart' element={<Protected><CartPage /></Protected>} />
             <Route path='/purchases' element={<Protected customerOnly><PurchasesPage /></Protected>} />
             <Route path='/purchase' element={<Protected customerOnly><PurchasesPage /></Protected>} />

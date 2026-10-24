@@ -130,7 +130,10 @@ function HeroSection() {
   return <section className="sales-hero folio-hero" aria-labelledby="hero-title">
     <Header />
     <div className="folio-hero-copy ">
-      <h1 id="hero-title"><span>Your Next <em>Portfolio</em></span><span>Starts <em>Right Here.</em></span></h1>
+      <h1 id="hero-title">
+        <span className="folio-headline-line"><span className="folio-fill folio-fill-ink">Your Next</span><span className="folio-fill folio-fill-brand">Portfolio</span></span>
+        <span className="folio-headline-line"><span className="folio-fill folio-fill-ink">Starts</span><span className="folio-fill folio-fill-brand">Right Here.</span></span>
+      </h1>
       <p>Discover beautifully crafted website templates for your next big idea.<br className="desktop-break" /> From creative portfolios to agency websites and online stores,<br className="desktop-break" /> find your style and launch with confidence.</p>
     </div>
     <svg className="folio-doodle folio-slashes" viewBox="0 0 72 48" aria-hidden="true"><path d="M12 40 30 9M40 42 58 11" /></svg>

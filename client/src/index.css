@@ -6609,10 +6609,63 @@ tbody tr:hover {
 .folio-hero .site-nav-link:hover,
 .folio-hero .library-menu-trigger:hover { color: var(--folio-purple); }
 .folio-hero .auth-actions { gap: 9px; }
-.folio-hero .header-auth-link { min-height: 40px; padding-inline: 18px; border-radius: 999px; color: var(--folio-ink); background: white; }
-.folio-hero .header-signup-link { color: white; background: var(--folio-purple); }
-.folio-hero .folio-header-explore { min-height: 40px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; color: white; background: var(--folio-purple); font-size: 12px; font-weight: 650; white-space: nowrap; }
-.folio-hero .folio-header-explore:hover { background: #554cc9; }
+.folio-hero .header-auth-link {
+  min-height: 40px;
+  padding-inline: 17px;
+  border: 1px solid #dfe2de;
+  border-radius: 999px;
+  color: #18201d;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.folio-hero .header-auth-link:hover {
+  border-color: #bfc3bf;
+  color: #18201d;
+  background: #f2f3f1;
+  transform: translateY(-1px);
+}
+.folio-hero .header-signup-link {
+  border-color: #635bdb;
+  color: #fff;
+  background: #635bdb;
+}
+.folio-hero .header-signup-link:hover {
+  border-color: #5146c8;
+  color: #fff;
+  background: #5146c8;
+}
+.folio-hero .header-auth-link:focus-visible {
+  outline: 3px solid rgba(99,91,219,.38);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px #fff;
+}
+.sales-hero.folio-hero .home-header .auth-actions .header-auth-link {
+  border-color: #dfe2de;
+  color: #18201d;
+  background: #fff;
+}
+.sales-hero.folio-hero .home-header .auth-actions .header-auth-link:hover {
+  border-color: #bfc3bf;
+  color: #18201d;
+  background: #f2f3f1;
+}
+.sales-hero.folio-hero .home-header .auth-actions .header-signup-link {
+  border-color: #635bdb;
+  color: #fff;
+  background: #635bdb;
+}
+.sales-hero.folio-hero .home-header .auth-actions .header-signup-link:hover {
+  border-color: #5146c8;
+  color: #fff;
+  background: #5146c8;
+}
+.sales-hero.folio-hero .home-header .auth-actions .header-auth-link:focus-visible {
+  outline: 3px solid rgba(99,91,219,.38);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px #fff;
+}
 .folio-hero .mobile-menu-trigger { color: var(--folio-ink); border-color: #dedfdb; }
 .folio-hero-copy {
   position: absolute;
@@ -6628,13 +6681,34 @@ tbody tr:hover {
   color: var(--folio-ink);
   font-size: clamp(56px, 6.12vw, 88px);
   font-weight: 750;
-  line-height: 1.045;
+  line-height: 1.12;
   letter-spacing: -.072em;
   text-wrap: balance;
 }
-.folio-hero-copy h1 span { display: block; animation: folio-rise 720ms cubic-bezier(.2,.8,.2,1) both; }
-.folio-hero-copy h1 span:nth-child(2) { animation-delay: 130ms; }
-.folio-hero-copy h1 em { color: var(--folio-purple); font-style: normal; }
+.folio-hero-copy h1 > .folio-headline-line { display: block; animation: folio-rise 720ms cubic-bezier(.2,.8,.2,1) both; }
+.folio-hero-copy h1 > .folio-headline-line:nth-child(2) { animation-delay: 130ms; }
+.folio-fill { display: inline-block; white-space: pre; }
+.folio-fill + .folio-fill { margin-left: .18em; }
+.folio-fill-ink { --fill-ink: #18201d; --rest-ink: rgba(24,32,29,.28); color: var(--fill-ink); }
+.folio-fill-brand { --fill-ink: #635bdb; --rest-ink: rgba(99,91,219,.3); color: var(--fill-ink); }
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+  .folio-fill {
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    background-image: linear-gradient(var(--fill-ink),var(--fill-ink)),linear-gradient(var(--rest-ink),var(--rest-ink));
+    background-repeat: no-repeat;
+    background-position: left center,left center;
+    background-size: 0% 120%,100% 120%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: folio-text-fill 1.05s cubic-bezier(.22,.75,.2,1) both;
+  }
+  .folio-headline-line:nth-child(1) .folio-fill-ink { animation-delay: 80ms; }
+  .folio-headline-line:nth-child(1) .folio-fill-brand { animation-delay: 190ms; }
+  .folio-headline-line:nth-child(2) .folio-fill-ink { animation-delay: 280ms; }
+  .folio-headline-line:nth-child(2) .folio-fill-brand { animation-delay: 390ms; }
+}
+@keyframes folio-text-fill { to { background-size: 100% 120%,100% 120%; } }
 .folio-hero-copy p {
   margin: 18px auto 0;
   color: #777d79;
@@ -6754,12 +6828,12 @@ tbody tr:hover {
   .folio-hero .main-nav { gap: 3px; margin-right: 0; }
   .folio-hero .main-nav .library-menu-trigger,
   .folio-hero .main-nav .nav-admin-link { min-height: 36px; padding-inline: 8px; font-size: 11px; }
-  .folio-hero .header-auth-link, .folio-hero .cart-link { display: none; }
+  .folio-hero .header-auth-link { min-height: 34px; padding-inline: 10px; display: inline-flex; font-size: 10px; }
+  .folio-hero .cart-link { display: none; }
   .folio-hero .site-header .account-trigger { display: flex; }
   .folio-hero .mobile-menu-trigger { display: none; }
-  .folio-hero .folio-header-explore { min-height: 36px; padding-inline: 13px; font-size: 11px; }
   .folio-hero-copy { top: 16%; padding-inline: 18px; }
-  .folio-hero-copy h1 { font-size: clamp(38px, 8vw, 56px); line-height: 1.04; letter-spacing: -.065em; }
+  .folio-hero-copy h1 { font-size: clamp(38px, 8vw, 56px); line-height: 1.12; letter-spacing: -.065em; }
   .folio-hero-copy p { max-width: 520px; margin-top: 13px; font-size: 13px; line-height: 1.5; }
   .desktop-break { display: none; }
   .theme-arch { inset: 42% 0 15%; }
@@ -6778,6 +6852,10 @@ tbody tr:hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .folio-hero *, .folio-hero *::before, .folio-hero *::after { animation: none !important; scroll-behavior: auto !important; }
+  .folio-hero .folio-fill { background-size: 100% 120%,100% 120%; }
+}
+@media (forced-colors: active) {
+  .folio-hero .folio-fill { color: CanvasText; -webkit-text-fill-color: CanvasText; background: none; animation: none; }
 }
 
 .marketing-page .featured-themes {

@@ -121,16 +121,15 @@ function Header() {
       </nav>}
 
       <div className="auth-actions">
-        {isReady && !user && !isHomePage && <>
-          <Link to="/sign-in" className="site-nav-link header-auth-link"><LogIn size={17} strokeWidth={1.9} />Log in</Link>
-          {!isHomePage && <Link to="/sign-up" className="site-nav-link header-auth-link header-signup-link"><UserPlus size={17} strokeWidth={1.9} />Create account</Link>}
+        {isReady && !user && <>
+          <Link to="/login" className="site-nav-link header-auth-link"><LogIn size={17} strokeWidth={1.9} />Log in</Link>
+          <Link to="/register" className="site-nav-link header-auth-link header-signup-link"><UserPlus size={17} strokeWidth={1.9} />Create account</Link>
         </>}
 
         {user && <>
           <AccountButton />
           {!isHomePage && user?.role !== "admin" && <Link className="cart-link" to="/cart" aria-label={`Cart with ${count} items`}><ShoppingBag size={19} />{count > 0 && <span>{count}</span>}</Link>}
         </>}
-        {isHomePage && <Link to="/themes" className="folio-header-explore">Explore Themes</Link>}
         <button
           ref={mobileTriggerRef}
           type="button"
@@ -179,8 +178,8 @@ function Header() {
         </>}
         {!user && <>
           <div className="mobile-auth-actions">
-            <Link to="/sign-in" tabIndex={mobileMenuOpen ? 0 : -1} onClick={() => setMobileOpen(false)} className="site-nav-link header-auth-link"><LogIn size={17} strokeWidth={1.9} />Login</Link>
-            <Link to="/sign-up" tabIndex={mobileMenuOpen ? 0 : -1} onClick={() => setMobileOpen(false)} className="site-nav-link header-auth-link header-signup-link"><UserPlus size={17} strokeWidth={1.9} />Create account</Link>
+            <Link to="/login" tabIndex={mobileMenuOpen ? 0 : -1} onClick={() => setMobileOpen(false)} className="site-nav-link header-auth-link"><LogIn size={17} strokeWidth={1.9} />Log in</Link>
+            <Link to="/register" tabIndex={mobileMenuOpen ? 0 : -1} onClick={() => setMobileOpen(false)} className="site-nav-link header-auth-link header-signup-link"><UserPlus size={17} strokeWidth={1.9} />Create account</Link>
 
           </div>
         </>}
