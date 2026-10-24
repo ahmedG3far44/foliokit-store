@@ -71,11 +71,11 @@ function Header() {
     <Logo />
     <>
 
-      <nav className="main-nav" aria-label="Main navigation">
-        <NavLink className={({ isActive }) => `site-nav-link ${isActive ? "active" : ""}`} to="/themes">
+      {(!isHomePage || user) && <nav className="main-nav" aria-label="Main navigation">
+        {!isHomePage && <NavLink className={({ isActive }) => `site-nav-link ${isActive ? "active" : ""}`} to="/themes">
           <LayoutTemplate size={17} strokeWidth={1.9} />
           <span>Themes</span>
-        </NavLink>
+        </NavLink>}
 
         {user && <>
           {user?.role === "customer" && <div className="library-nav" ref={libraryRef}>
@@ -118,18 +118,19 @@ function Header() {
             <span>Dashboard</span>
           </NavLink>}
         </>}
-      </nav>
+      </nav>}
 
       <div className="auth-actions">
-        {isReady && !user && <>
-          <Link to="/sign-in" className="site-nav-link header-auth-link"><LogIn size={17} strokeWidth={1.9} />Login</Link>
-          <Link to="/sign-up" className="site-nav-link header-auth-link header-signup-link"><UserPlus size={17} strokeWidth={1.9} />Create account</Link>
+        {isReady && !user && !isHomePage && <>
+          <Link to="/sign-in" className="site-nav-link header-auth-link"><LogIn size={17} strokeWidth={1.9} />Log in</Link>
+          {!isHomePage && <Link to="/sign-up" className="site-nav-link header-auth-link header-signup-link"><UserPlus size={17} strokeWidth={1.9} />Create account</Link>}
         </>}
 
         {user && <>
           <AccountButton />
-          {user?.role !== "admin" && <Link className="cart-link" to="/cart" aria-label={`Cart with ${count} items`}><ShoppingBag size={19} />{count > 0 && <span>{count}</span>}</Link>}
+          {!isHomePage && user?.role !== "admin" && <Link className="cart-link" to="/cart" aria-label={`Cart with ${count} items`}><ShoppingBag size={19} />{count > 0 && <span>{count}</span>}</Link>}
         </>}
+        {isHomePage && <Link to="/themes" className="folio-header-explore">Explore Themes</Link>}
         <button
           ref={mobileTriggerRef}
           type="button"
