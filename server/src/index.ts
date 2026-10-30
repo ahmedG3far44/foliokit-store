@@ -26,7 +26,10 @@ app.set('trust proxy', true);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
-app.use(cors({ origin: env.CLIENT_URL.split(",").map((value) => value.trim()), credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => callback(null, !origin || env.CLIENT_ORIGINS.includes(origin)),
+  credentials: true,
+}));
 
 app.use(verifyRegion);
 app.use(requestContext);
@@ -38,10 +41,10 @@ app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
 app.get("/", (_req, res) => {
-  res.json({ status: "ok", service: "Foliokit Server", version: "1.0.0", origins: env.CLIENT_URL.split(",").map((value) => value.trim()) });
+  res.json({ status: "ok", service: "Foliokit Server", version: "1.0.0", origins: env.CLIENT_ORIGINS });
 })
 
-app.get("/health/live", (_req, res) => { res.json({ status: "ok", service: "Foliokit Server", version: "1.0.0", origin: env.CLIENT_URL.split(",").map((value) => value.trim()) }); });
+app.get("/health/live", (_req, res) => { res.json({ status: "ok", service: "Foliokit Server", version: "1.0.0", origins: env.CLIENT_ORIGINS }); });
 
 app.get("/health/ready", (_req, res) => {
   const ready = mongoose.connection.readyState === 1;

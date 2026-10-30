@@ -114,7 +114,7 @@ The client sends one manual GA4 `page_view` for each React Router location. In t
 - Generate two different random values of at least 32 characters for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`. Keep both server-only and use different values in development and production.
 - Create a Google OAuth 2.0 **Web application** client. Add `http://localhost:5173` and `https://foliokit.store` as Authorized JavaScript origins. This Google Identity Services flow verifies an ID token at the API, so it does not use a callback URL or a Google client secret.
 - Set the same public web client ID as `GOOGLE_CLIENT_ID` on the server and `VITE_GOOGLE_CLIENT_ID` on the client.
-- Set `CLIENT_URL` to the exact browser origin. The API validates mutating-request origins and sends `HttpOnly`, `Secure` production cookies; every client API request uses `credentials: "include"`.
+- Set `CLIENT_URL` to a comma-separated list of exact browser origins, with no spaces required (for example, `https://foliokit.store,https://www.foliokit.store`). The first origin is used for checkout and email links. The API normalizes trailing slashes, validates mutating-request origins, and sends `HttpOnly`, `Secure` production cookies; every client API request uses `credentials: "include"`.
 - Access tokens expire after `ACCESS_TOKEN_TTL_MINUTES` and refresh sessions after `REFRESH_TOKEN_TTL_DAYS`. Refresh tokens rotate and only their SHA-256 hashes are stored in MongoDB.
 
 #### Resend

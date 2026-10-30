@@ -1,16 +1,19 @@
 import dotenv from "dotenv";
+import { parseClientOrigins } from "./client-origins.ts";
 
 const nodeEnvironment = process.env.NODE_ENV ?? "development";
 dotenv.config({ path: `.env.${nodeEnvironment}` });
 dotenv.config();
 
 const configuredSentrySampleRate = Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? (nodeEnvironment === "production" ? 0.1 : 1));
+const clientOrigins = parseClientOrigins(process.env.CLIENT_URL ?? "http://localhost:5173");
 
 const env = {
   NODE_ENV: nodeEnvironment,
   PORT: Number(process.env.PORT ?? 5000),
 
-  CLIENT_URL: process.env.CLIENT_URL ?? "http://localhost:5173",
+  CLIENT_URL: clientOrigins[0],
+  CLIENT_ORIGINS: clientOrigins,
   MONGODB_URI: process.env.MONGO_URI ?? process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/saas",
 
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET?.trim() || "development-access-secret-change-before-production",
@@ -80,7 +83,7 @@ if (env.NODE_ENV === "production") {
   for (const [name, value] of Object.entries(requiredValues)) {
     if (isPlaceholder(value)) issues.push(`${name} is missing or still contains a placeholder`);
   }
-  if (!env.CLIENT_URL.split(",").every((url) => url.trim().startsWith("https://"))) issues.push("CLIENT_URL must contain HTTPS origins");
+  if (!env.CLIENT_ORIGINS.every((url) => new URL(url).protocol === "https:")) issues.push("CLIENT_URL must contain HTTPS origins");
   if (!env.PUBLIC_API_URL.startsWith("https://")) issues.push("PUBLIC_API_URL must use HTTPS");
   if (!/^mongodb(?:\+srv)?:\/\//.test(env.MONGODB_URI)) issues.push("MONGODB_URI is not a MongoDB connection string");
   if (env.JWT_ACCESS_SECRET.length < 32) issues.push("JWT_ACCESS_SECRET must contain at least 32 characters");
